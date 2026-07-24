@@ -1,0 +1,43 @@
+name: Sincronizar activos publicados
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sync-published-assets.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descargar activos de la versión publicada
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://ene-interactiva.alhen1970.chatgpt.site"
+          files=(
+            "public/branding/logo-relatos-estadisticos-home.png"
+            "public/branding/logo-relatos-estadisticos-v2.png"
+            "public/branding/logo-relatos-estadisticos-v3.png"
+            "public/branding/logo-relatos-estadisticos.png"
+            "public/sdmx/00_Estructuras_ENE_completo.xml"
+            "public/sdmx/ENE_IND_PRINCIPALES_completo_SDMX-CSV_2.0.csv"
+            "public/sdmx/ENE_RM_ultimos_13_trimestres_SDMX-CSV_2.0.csv"
+            "public/sdmx/Guia_tecnica_ENE_SDMX.pdf"
+            "public/sdmx/informe_validacion_completo.json"
+            "public/sdmx/transformar_ene_sdmx.py"
+          )
+          for path in "${files[@]}"; do
+            mkdir -p "$(dirname "$path")"
+            curl --fail --location --retry 3 --silent --show-error "$base/${path#public/}" --output "$path"
+          done
+          git rm .github/workflows/sync-published-assets.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/branding public/sdmx
+          git commit -m "Sincronizar activos de la versión publicada"
+          git push
