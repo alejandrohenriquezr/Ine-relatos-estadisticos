@@ -1,0 +1,67 @@
+{
+  "generated_at_utc": "2026-07-24T17:03:01.163615+00:00",
+  "source_url": "https://www.ine.gob.cl/docs/default-source/ocupacion-y-desocupacion/cuadros-estadisticos/series-vigentes/indicadores_principales.xlsx",
+  "source_file": "/mnt/data/indicadores_principales.xlsx",
+  "source_sha256": "f68ebf9e700e55df5435a21db20814d72f454dce18efb3d71c6269c57f99bd79",
+  "agency_id": "INE.GOB.CL",
+  "dataflow": "INE.GOB.CL:DF_ENE_IND_PRINCIPALES(1.0)",
+  "format": "SDMX-CSV 2.0",
+  "time_period_rule": "mes final del trimestre móvil",
+  "decimal_policy": "se conserva el texto decimal almacenado en el XLSX",
+  "quality_mapping": {
+    "sin marca": "F",
+    "a": "A",
+    "b": "B"
+  },
+  "valid": true,
+  "errors": [],
+  "observation_count": 48165,
+  "series_count": 247,
+  "period_count": 195,
+  "first_period": "2010-03",
+  "last_period": "2026-05",
+  "quality_counts": {
+    "F": 40066,
+    "A": 1419,
+    "B": 6680
+  },
+  "areas": [
+    "CL",
+    "CL-AI",
+    "CL-AN",
+    "CL-AP",
+    "CL-AR",
+    "CL-AT",
+    "CL-BI",
+    "CL-CO",
+    "CL-LI",
+    "CL-LL",
+    "CL-LR",
+    "CL-MA",
+    "CL-ML",
+    "CL-NB",
+    "CL-RM",
+    "CL-TA",
+    "CL-VA"
+  ],
+  "sex_codes": [
+    "F",
+    "M",
+    "T"
+  ],
+  "indicators": [
+    "EMP",
+    "EMP_RT",
+    "LF",
+    "LF_PART_RT",
+    "OLF",
+    "OLF_INIT",
+    "OLF_POT",
+    "OLF_USUAL",
+    "UNE",
+    "UNE_EXP",
+    "UNE_FIRST",
+    "UNE_RT",
+    "WAP"
+  ]
+}

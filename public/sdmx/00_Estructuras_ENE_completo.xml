@@ -1,0 +1,319 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<mes:Structure xmlns:mes="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/message" xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/structure" xmlns:com="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/common" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/message https://xml.sdmx.org/3.0/SDMXMessage.xsd">
+  <mes:Header>
+    <mes:ID>ENE_SDMX_PILOT_V1</mes:ID>
+    <mes:Test>true</mes:Test>
+    <mes:Prepared>2026-07-24T16:00:00Z</mes:Prepared>
+    <mes:Sender id="INE.GOB.CL"/>
+    <mes:Receiver id="PUBLIC"/>
+  </mes:Header>
+  <mes:Structures><str:Concepts>
+      <str:ConceptScheme agencyID="INE.GOB.CL" id="CS_ENE_IND_PRINCIPALES" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Esquema de conceptos: indicadores principales de la ENE</com:Name>
+        <str:Concept id="FREQ">
+          <com:Name xml:lang="es">Frecuencia</com:Name>
+        </str:Concept>
+        <str:Concept id="REF_AREA">
+          <com:Name xml:lang="es">Área geográfica de referencia</com:Name>
+        </str:Concept>
+        <str:Concept id="SEX">
+          <com:Name xml:lang="es">Sexo</com:Name>
+        </str:Concept>
+        <str:Concept id="INDICATOR">
+          <com:Name xml:lang="es">Indicador laboral</com:Name>
+        </str:Concept>
+        <str:Concept id="TIME_PERIOD">
+          <com:Name xml:lang="es">Período temporal</com:Name>
+        </str:Concept>
+        <str:Concept id="OBS_VALUE">
+          <com:Name xml:lang="es">Valor de la observación</com:Name>
+        </str:Concept>
+        <str:Concept id="UNIT_MEASURE">
+          <com:Name xml:lang="es">Unidad de medida</com:Name>
+        </str:Concept>
+        <str:Concept id="UNIT_MULT">
+          <com:Name xml:lang="es">Multiplicador de unidad</com:Name>
+        </str:Concept>
+        <str:Concept id="EST_QUALITY">
+          <com:Name xml:lang="es">Calidad de la estimación</com:Name>
+        </str:Concept>
+        <str:Concept id="REF_PERIOD_START">
+          <com:Name xml:lang="es">Inicio del período de referencia</com:Name>
+        </str:Concept>
+        <str:Concept id="REF_PERIOD_END">
+          <com:Name xml:lang="es">Fin del período de referencia</com:Name>
+        </str:Concept>
+        <str:Concept id="TIME_PERIOD_LABEL">
+          <com:Name xml:lang="es">Etiqueta del trimestre móvil</com:Name>
+        </str:Concept>
+        <str:Concept id="SOURCE">
+          <com:Name xml:lang="es">Fuente</com:Name>
+        </str:Concept>
+      </str:ConceptScheme>
+    </str:Concepts>
+  <str:Codelists>
+      <str:Codelist agencyID="INE.GOB.CL" id="CL_FREQ" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Frecuencia</com:Name>
+        <str:Code id="M">
+          <com:Name xml:lang="es">Mensual; cada observación representa un trimestre móvil finalizado en el mes indicado</com:Name>
+        </str:Code>
+      </str:Codelist>
+      <str:Codelist agencyID="INE.GOB.CL" id="CL_REF_AREA_ENE" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Áreas geográficas ENE</com:Name>
+        <str:Code id="CL">
+          <com:Name xml:lang="es">Chile</com:Name>
+        </str:Code>
+        <str:Code id="CL-AP">
+          <com:Name xml:lang="es">Región de Arica y Parinacota</com:Name>
+        </str:Code>
+        <str:Code id="CL-TA">
+          <com:Name xml:lang="es">Región de Tarapacá</com:Name>
+        </str:Code>
+        <str:Code id="CL-AN">
+          <com:Name xml:lang="es">Región de Antofagasta</com:Name>
+        </str:Code>
+        <str:Code id="CL-AT">
+          <com:Name xml:lang="es">Región de Atacama</com:Name>
+        </str:Code>
+        <str:Code id="CL-CO">
+          <com:Name xml:lang="es">Región de Coquimbo</com:Name>
+        </str:Code>
+        <str:Code id="CL-VA">
+          <com:Name xml:lang="es">Región de Valparaíso</com:Name>
+        </str:Code>
+        <str:Code id="CL-RM">
+          <com:Name xml:lang="es">Región Metropolitana de Santiago</com:Name>
+        </str:Code>
+        <str:Code id="CL-LI">
+          <com:Name xml:lang="es">Región del Libertador General Bernardo O’Higgins</com:Name>
+        </str:Code>
+        <str:Code id="CL-ML">
+          <com:Name xml:lang="es">Región del Maule</com:Name>
+        </str:Code>
+        <str:Code id="CL-NB">
+          <com:Name xml:lang="es">Región de Ñuble</com:Name>
+        </str:Code>
+        <str:Code id="CL-BI">
+          <com:Name xml:lang="es">Región del Biobío</com:Name>
+        </str:Code>
+        <str:Code id="CL-AR">
+          <com:Name xml:lang="es">Región de La Araucanía</com:Name>
+        </str:Code>
+        <str:Code id="CL-LR">
+          <com:Name xml:lang="es">Región de Los Ríos</com:Name>
+        </str:Code>
+        <str:Code id="CL-LL">
+          <com:Name xml:lang="es">Región de Los Lagos</com:Name>
+        </str:Code>
+        <str:Code id="CL-AI">
+          <com:Name xml:lang="es">Región de Aysén del General Carlos Ibáñez del Campo</com:Name>
+        </str:Code>
+        <str:Code id="CL-MA">
+          <com:Name xml:lang="es">Región de Magallanes y de la Antártica Chilena</com:Name>
+        </str:Code>
+      </str:Codelist>
+      <str:Codelist agencyID="INE.GOB.CL" id="CL_SEX" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Sexo</com:Name>
+        <str:Code id="T">
+          <com:Name xml:lang="es">Total o ambos sexos</com:Name>
+        </str:Code>
+        <str:Code id="M">
+          <com:Name xml:lang="es">Hombres</com:Name>
+        </str:Code>
+        <str:Code id="F">
+          <com:Name xml:lang="es">Mujeres</com:Name>
+        </str:Code>
+      </str:Codelist>
+      <str:Codelist agencyID="INE.GOB.CL" id="CL_ENE_INDICATOR" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Indicadores principales ENE</com:Name>
+        <str:Code id="WAP">
+          <com:Name xml:lang="es">Población en edad de trabajar (Total)</com:Name>
+        </str:Code>
+        <str:Code id="LF">
+          <com:Name xml:lang="es">Fuerza de trabajo (Total)</com:Name>
+        </str:Code>
+        <str:Code id="EMP">
+          <com:Name xml:lang="es">Población ocupada (Total)</com:Name>
+        </str:Code>
+        <str:Code id="UNE">
+          <com:Name xml:lang="es">Población desocupada (Total)</com:Name>
+        </str:Code>
+        <str:Code id="UNE_EXP">
+          <com:Name xml:lang="es">Población desocupada (Cesantes)</com:Name>
+        </str:Code>
+        <str:Code id="UNE_FIRST">
+          <com:Name xml:lang="es">Población desocupada (Buscan trabajo por primera vez)</com:Name>
+        </str:Code>
+        <str:Code id="OLF">
+          <com:Name xml:lang="es">Fuera de la fuerza de trabajo (Total)</com:Name>
+        </str:Code>
+        <str:Code id="OLF_INIT">
+          <com:Name xml:lang="es">Fuera de la fuerza de trabajo (Iniciadores)</com:Name>
+        </str:Code>
+        <str:Code id="OLF_POT">
+          <com:Name xml:lang="es">Fuera de la fuerza de trabajo (Inactivos potencialmente activos)</com:Name>
+        </str:Code>
+        <str:Code id="OLF_USUAL">
+          <com:Name xml:lang="es">Fuera de la fuerza de trabajo (Inactivos habituales)</com:Name>
+        </str:Code>
+        <str:Code id="UNE_RT">
+          <com:Name xml:lang="es">Tasa de desocupación</com:Name>
+        </str:Code>
+        <str:Code id="EMP_RT">
+          <com:Name xml:lang="es">Tasa de ocupación</com:Name>
+        </str:Code>
+        <str:Code id="LF_PART_RT">
+          <com:Name xml:lang="es">Tasa de participación</com:Name>
+        </str:Code>
+      </str:Codelist>
+      <str:Codelist agencyID="INE.GOB.CL" id="CL_UNIT_MEASURE" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Unidad de medida</com:Name>
+        <str:Code id="PS">
+          <com:Name xml:lang="es">Personas</com:Name>
+        </str:Code>
+        <str:Code id="PT">
+          <com:Name xml:lang="es">Porcentaje</com:Name>
+        </str:Code>
+      </str:Codelist>
+      <str:Codelist agencyID="INE.GOB.CL" id="CL_UNIT_MULT" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Multiplicador de unidad</com:Name>
+        <str:Code id="0">
+          <com:Name xml:lang="es">Unidades</com:Name>
+        </str:Code>
+        <str:Code id="3">
+          <com:Name xml:lang="es">Miles</com:Name>
+        </str:Code>
+      </str:Codelist>
+      <str:Codelist agencyID="INE.GOB.CL" id="CL_ENE_EST_QUALITY" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Calidad de la estimación</com:Name>
+        <str:Code id="F">
+          <com:Name xml:lang="es">Estimación fiable</com:Name>
+        </str:Code>
+        <str:Code id="A">
+          <com:Name xml:lang="es">Estimación poco fiable</com:Name>
+        </str:Code>
+        <str:Code id="B">
+          <com:Name xml:lang="es">Estimación no fiable</com:Name>
+        </str:Code>
+      </str:Codelist>
+    </str:Codelists>
+  <str:DataStructures>
+      <str:DataStructure agencyID="INE.GOB.CL" id="DSD_ENE_IND_PRINCIPALES" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">DSD de indicadores principales de la Encuesta Nacional de Empleo</com:Name>
+        <str:DataStructureComponents>
+          <str:DimensionList id="DimensionDescriptor">
+            <str:Dimension id="FREQ" position="1">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).FREQ</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:Enumeration>urn:sdmx:org.sdmx.infomodel.codelist.Codelist=INE.GOB.CL:CL_FREQ(1.0)</str:Enumeration>
+              </str:LocalRepresentation>
+            </str:Dimension>
+            <str:Dimension id="REF_AREA" position="2">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).REF_AREA</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:Enumeration>urn:sdmx:org.sdmx.infomodel.codelist.Codelist=INE.GOB.CL:CL_REF_AREA_ENE(1.0)</str:Enumeration>
+              </str:LocalRepresentation>
+            </str:Dimension>
+            <str:Dimension id="SEX" position="3">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).SEX</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:Enumeration>urn:sdmx:org.sdmx.infomodel.codelist.Codelist=INE.GOB.CL:CL_SEX(1.0)</str:Enumeration>
+              </str:LocalRepresentation>
+            </str:Dimension>
+            <str:Dimension id="INDICATOR" position="4">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).INDICATOR</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:Enumeration>urn:sdmx:org.sdmx.infomodel.codelist.Codelist=INE.GOB.CL:CL_ENE_INDICATOR(1.0)</str:Enumeration>
+              </str:LocalRepresentation>
+            </str:Dimension>
+            <str:TimeDimension id="TIME_PERIOD">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).TIME_PERIOD</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:TextFormat textType="ObservationalTimePeriod"/>
+              </str:LocalRepresentation>
+            </str:TimeDimension>
+          </str:DimensionList>
+          <str:MeasureList id="MeasureDescriptor">
+            <str:PrimaryMeasure id="OBS_VALUE">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).OBS_VALUE</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:TextFormat textType="Decimal"/>
+              </str:LocalRepresentation>
+            </str:PrimaryMeasure>
+          </str:MeasureList>
+          <str:AttributeList id="AttributeDescriptor">
+            <str:Attribute id="UNIT_MEASURE" assignmentStatus="Mandatory">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).UNIT_MEASURE</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:Enumeration>urn:sdmx:org.sdmx.infomodel.codelist.Codelist=INE.GOB.CL:CL_UNIT_MEASURE(1.0)</str:Enumeration>
+              </str:LocalRepresentation>
+              <str:AttributeRelationship>
+                <str:Series/>
+              </str:AttributeRelationship>
+            </str:Attribute>
+            <str:Attribute id="UNIT_MULT" assignmentStatus="Mandatory">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).UNIT_MULT</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:Enumeration>urn:sdmx:org.sdmx.infomodel.codelist.Codelist=INE.GOB.CL:CL_UNIT_MULT(1.0)</str:Enumeration>
+              </str:LocalRepresentation>
+              <str:AttributeRelationship>
+                <str:Series/>
+              </str:AttributeRelationship>
+            </str:Attribute>
+            <str:Attribute id="EST_QUALITY" assignmentStatus="Mandatory">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).EST_QUALITY</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:Enumeration>urn:sdmx:org.sdmx.infomodel.codelist.Codelist=INE.GOB.CL:CL_ENE_EST_QUALITY(1.0)</str:Enumeration>
+              </str:LocalRepresentation>
+              <str:AttributeRelationship>
+                <str:Observation/>
+              </str:AttributeRelationship>
+            </str:Attribute>
+            <str:Attribute id="REF_PERIOD_START" assignmentStatus="Conditional">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).REF_PERIOD_START</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:TextFormat textType="String" maxLength="200"/>
+              </str:LocalRepresentation>
+              <str:AttributeRelationship>
+                <str:Observation/>
+              </str:AttributeRelationship>
+            </str:Attribute>
+            <str:Attribute id="REF_PERIOD_END" assignmentStatus="Conditional">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).REF_PERIOD_END</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:TextFormat textType="String" maxLength="200"/>
+              </str:LocalRepresentation>
+              <str:AttributeRelationship>
+                <str:Observation/>
+              </str:AttributeRelationship>
+            </str:Attribute>
+            <str:Attribute id="TIME_PERIOD_LABEL" assignmentStatus="Conditional">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).TIME_PERIOD_LABEL</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:TextFormat textType="String" maxLength="200"/>
+              </str:LocalRepresentation>
+              <str:AttributeRelationship>
+                <str:Observation/>
+              </str:AttributeRelationship>
+            </str:Attribute>
+            <str:Attribute id="SOURCE" assignmentStatus="Conditional">
+              <str:ConceptIdentity>urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=INE.GOB.CL:CS_ENE_IND_PRINCIPALES(1.0).SOURCE</str:ConceptIdentity>
+              <str:LocalRepresentation>
+                <str:TextFormat textType="String" maxLength="200"/>
+              </str:LocalRepresentation>
+              <str:AttributeRelationship>
+                <str:DataSet/>
+              </str:AttributeRelationship>
+            </str:Attribute>
+          </str:AttributeList>
+        </str:DataStructureComponents>
+      </str:DataStructure>
+    </str:DataStructures>
+  <str:Dataflows>
+      <str:Dataflow agencyID="INE.GOB.CL" id="DF_ENE_IND_PRINCIPALES" version="1.0" isExternalReference="false">
+        <com:Name xml:lang="es">Indicadores principales de la Encuesta Nacional de Empleo</com:Name>
+        <str:Structure>urn:sdmx:org.sdmx.infomodel.datastructure.DataStructure=INE.GOB.CL:DSD_ENE_IND_PRINCIPALES(1.0)</str:Structure>
+      </str:Dataflow>
+    </str:Dataflows>
+  </mes:Structures>
+</mes:Structure>
