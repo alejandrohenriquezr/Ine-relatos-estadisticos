@@ -1,16 +1,17 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
-import {
-  lastChartPeriods,
-  toggleChartSeries,
-} from "../lib/supermarket-chart-state";
+import { toggleChartSeries } from "../lib/supermarket-chart-state";
 import {
   peekDataset,
   primeDataset,
   refreshDataset,
 } from "../lib/client-data-prefetch";
 import SectionHeader, { IneLogo } from "./SectionHeader";
+import {
+  useTemporalWindow,
+  type TemporalPreset,
+} from "./TemporalChartControls";
 const variationLabels = {
     monthly: "Variación mensual (%)",
     annual: "Variación 12 meses (%)",
@@ -49,14 +50,27 @@ function Chart({
     allLabels = hasValue
       ? { value: valueLabel!, ...variationLabels }
       : variationLabels,
-    [visible, setVisible] = useState<Record<string, boolean>>(() =>
-      hasValue
+    [visible, setVisible] = useState<Record<string, boolean>>(() => {
+      const initial: Record<string, boolean> = hasValue
         ? { value: true, monthly: false, annual: false, accumulated: false }
-        : { monthly: true, annual: true, accumulated: true },
-    );
+        : { monthly: true, annual: true, accumulated: true };
+      return initial;
+    });
   const toggle = (key: string) =>
     setVisible((old) => toggleChartSeries(old, key, hasValue));
-  const usable = lastChartPeriods(series),
+  const temporalPresets: TemporalPreset[] = [
+    { value: 25, label: "25 períodos" },
+    { value: 60, label: "5 años" },
+    { value: 120, label: "10 años" },
+    { value: "all", label: "Serie completa" },
+  ];
+  const temporal = useTemporalWindow(
+    series,
+    series.map((point) => point.label),
+    temporalPresets,
+    25,
+  );
+  const usable = temporal.visible,
     keys = Object.keys(allLabels),
     activeKeys = keys.filter((key) => visible[key]),
     values = usable.flatMap((point) =>
@@ -105,7 +119,7 @@ function Chart({
           </button>
         ))}
       </div>
-      <svg viewBox={`0 0 ${w} ${h}`}>
+      <svg className="chart chart-motion" viewBox={`0 0 ${w} ${h}`}>
         {Array.from({ length: 6 }, (_, i) => min + (range * i) / 5).map(
           (tick, index) => (
             <g className="supermarket-grid-tick" key={index}>
@@ -135,26 +149,47 @@ function Chart({
           </text>
         ))}
         {keys.map((key) => (
-          <path
+          <g
             key={key}
             data-series={key}
-            className={`supermarket-series ${visible[key] ? "is-visible" : ""}`}
-            pathLength="1"
-            fill="none"
-            stroke={colors[key as keyof typeof colors]}
-            strokeWidth="3"
-            d={usable
-              .map((point, i) =>
-                Number.isFinite(point[key])
-                  ? `${i ? "L" : "M"}${x(i)},${y(point[key])}`
-                  : "",
-              )
-              .join(" ")}
-          />
+            opacity={visible[key] ? 1 : 0}
+          >
+            <path
+              data-series={key}
+              className={`supermarket-series ${visible[key] ? "is-visible" : ""}`}
+              pathLength="1"
+              fill="none"
+              stroke={colors[key as keyof typeof colors]}
+              strokeWidth="3"
+              d={usable
+                .map((point, i) =>
+                  Number.isFinite(point[key])
+                    ? `${i ? "L" : "M"}${x(i)},${y(point[key])}`
+                    : "",
+                )
+                .join(" ")}
+            />
+            {usable.map((point, index) =>
+              Number.isFinite(point[key]) ? (
+                <circle
+                  key={`${key}-${point.label}`}
+                  cx={x(index)}
+                  cy={y(point[key])}
+                  r="3"
+                  fill={colors[key as keyof typeof colors]}
+                >
+                  <title>
+                    {point.label}: {axis(point[key])}
+                  </title>
+                </circle>
+              ) : null,
+            )}
+          </g>
         ))}
       </svg>
+      {temporal.controls}
       <p className="econ-caption">
-        Últimos 25 meses disponibles. Fuente: INE, Índice de Ventas de
+        {usable.length} períodos visibles. Fuente: INE, Índice de Ventas de
         Supermercados.
       </p>
     </div>

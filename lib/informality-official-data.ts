@@ -24,7 +24,7 @@ function parseBreakdown(buffer:ArrayBuffer){
   });
 }
 
-const simple=(series:ReturnType<typeof parseBreakdown>)=>series.map(point=>({year:point.year,quarter:point.quarter,items:point.items.filter(item=>!item.label.startsWith("No sabe")).map(({label,formal,informal})=>({label,formal,informal}))}));
+const simple=(series:ReturnType<typeof parseBreakdown>)=>series.map(point=>({year:point.year,quarter:point.quarter,items:point.items.filter(item=>!item.label.startsWith("No sabe"))}));
 
 export function parseInformalityOfficialFiles(files:{rates:ArrayBuffer;branches:ArrayBuffer;categories:ArrayBuffer;groups:ArrayBuffer}){
   const rates=parseRates(files.rates),categorySeries=parseBreakdown(files.categories),latest=rates.at(-1);

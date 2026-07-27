@@ -13,6 +13,10 @@ import SectionHeader, {
   IneLogo,
   type SiteDestination,
 } from "./SectionHeader";
+import {
+  useTemporalWindow,
+  type TemporalPreset,
+} from "./TemporalChartControls";
 
 type Kind = "energy" | "industry" | "permits" | "commerce";
 type Point = {
@@ -93,7 +97,19 @@ function Spark({
     value: number;
     color: string;
   } | null>(null);
-  const usable = series.slice(-25),
+  const temporalPresets: TemporalPreset[] = [
+    { value: 25, label: "25 períodos" },
+    { value: 60, label: "5 años" },
+    { value: 120, label: "10 años" },
+    { value: "all", label: "Serie completa" },
+  ];
+  const temporal = useTemporalWindow(
+    series,
+    series.map((point) => point.label),
+    temporalPresets,
+    25,
+  );
+  const usable = temporal.visible,
     isMulti = fields.length > 1;
   const visible = isMulti ? fields.filter((f) => active.includes(f)) : fields;
   const values = usable.flatMap((p) =>
@@ -222,6 +238,7 @@ function Spark({
             return (
               <g
                 key={isMulti ? f : "primary"}
+                data-series={f}
                 opacity={shown ? 1 : 0}
                 className="econ-series"
               >
@@ -254,7 +271,12 @@ function Spark({
                           color,
                         })
                       }
-                    />
+                    >
+                      <title>
+                        {p.label}: {fmt(v)}
+                        {unit}
+                      </title>
+                    </circle>
                   ) : null;
                 })}
               </g>
@@ -262,7 +284,8 @@ function Spark({
           })}
         </svg>
       </div>
-      <p className="econ-caption">Últimos 25 meses disponibles.</p>
+      {temporal.controls}
+      <p className="econ-caption">{usable.length} períodos visibles.</p>
     </div>
   );
 }

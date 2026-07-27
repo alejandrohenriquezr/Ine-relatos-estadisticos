@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 export type SiteDestination =
+  | "home"
   | "ene"
   | "informality"
   | "ipc"
@@ -117,6 +118,22 @@ export function IneLogo({ inverse = false }: { inverse?: boolean }) {
   );
 }
 
+export function HomeNavLink({ active = false }: { active?: boolean }) {
+  return (
+    <a
+      className={`topics-home-link ${active ? "active" : ""}`}
+      href="/"
+      aria-label="Ir al inicio"
+      aria-current={active ? "page" : undefined}
+      title="Inicio"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3.5 10.5 12 3.7l8.5 6.8M5.7 9.2v10.1h12.6V9.2M9.5 19.3v-6.1h5v6.1" />
+      </svg>
+    </a>
+  );
+}
+
 export default function SectionHeader({
   current,
   onNavigate,
@@ -137,15 +154,24 @@ export default function SectionHeader({
       <div className="topbar">
         <div className="brand">
           <IneLogo />
-          <b>
-            INE <em>|</em> Relatos Estadísticos
-          </b>
+          <a
+            className="relatos-home-link"
+            href="/"
+            aria-label="Ir al inicio de Relatos Estadísticos"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/branding/logo-relatos-estadisticos-home.png"
+              alt="Relatos Estadísticos"
+            />
+          </a>
         </div>
         <nav className="utility">
           <a href="https://www.ine.gob.cl/institucional/">Acerca del INE</a>
         </nav>
       </div>
       <nav className="topics econ-topics" aria-label="Temas estadísticos">
+        <HomeNavLink active={current === "home"} />
         {menus.map((menu) => {
           const isOpen = openMenu === menu.id;
           const isActive = menu.destinations.includes(current);

@@ -16,6 +16,17 @@ export const metadata: Metadata = {
   title: "INE | Relatos Estadísticos",
   description:
     "Relatos interactivos construidos con estadísticas oficiales de Chile.",
+  // Esta directiva se hereda en todas las vistas administradas por el layout raíz.
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
   other: {
     "codex-preview": "development",
   },

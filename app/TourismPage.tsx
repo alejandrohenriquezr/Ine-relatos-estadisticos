@@ -7,6 +7,10 @@ import {
   refreshDataset,
 } from "../lib/client-data-prefetch";
 import SectionHeader, { IneLogo } from "./SectionHeader";
+import {
+  useTemporalWindow,
+  type TemporalPreset,
+} from "./TemporalChartControls";
 
 const metricLabels = {
   value: "Nivel",
@@ -100,7 +104,19 @@ function TourismChart({
   metric: string;
   unit: string;
 }) {
-  const usable = series.slice(-25),
+  const temporalPresets: TemporalPreset[] = [
+    { value: 25, label: "25 períodos" },
+    { value: 60, label: "5 años" },
+    { value: 120, label: "10 años" },
+    { value: "all", label: "Serie completa" },
+  ];
+  const temporal = useTemporalWindow(
+    series,
+    series.map((point) => point.label),
+    temporalPresets,
+    25,
+  );
+  const usable = temporal.visible,
     values = usable
       .map((point) => point[metric])
       .filter(
@@ -152,7 +168,11 @@ function TourismChart({
             </span>
           </div>
         )}
-        <svg viewBox={`0 0 ${w} ${h}`} onMouseLeave={() => setHover(null)}>
+        <svg
+          className="chart chart-motion"
+          viewBox={`0 0 ${w} ${h}`}
+          onMouseLeave={() => setHover(null)}
+        >
           {Array.from(
             { length: 6 },
             (_, index) => min + (range * index) / 5,
@@ -220,13 +240,20 @@ function TourismChart({
                     value: point[metric],
                   })
                 }
-              />
+              >
+                <title>
+                  {point.label}:{" "}
+                  {fmt(point[metric], unit === "%" ? 1 : 0)}
+                  {unit}
+                </title>
+              </circle>
             ) : null,
           )}
         </svg>
       </div>
+      {temporal.controls}
       <p className="econ-caption">
-        Últimos 25 meses disponibles. Fuente: INE, Encuesta Mensual de
+        {usable.length} períodos visibles. Fuente: INE, Encuesta Mensual de
         Alojamiento Turístico.
       </p>
     </div>

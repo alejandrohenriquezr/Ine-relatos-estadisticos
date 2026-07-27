@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mes:Structure xmlns:mes="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/message"
+ xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/structure"
+ xmlns:com="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/common">
+  <mes:Header><mes:ID>INE-ENE-MERCADO-LABORAL-2.0</mes:ID><mes:Test>false</mes:Test>
+    <mes:Prepared>2026-07-26T00:00:00Z</mes:Prepared><mes:Sender id="INE.GOB.CL"/>
+  </mes:Header>
+  <mes:Structures>
+    <str:Codelists>
+      <str:Codelist id="CL_DATASET" agencyID="INE.GOB.CL" version="2.0">
+        <com:Name xml:lang="es">Conjuntos laborales</com:Name>
+        <str:Code id="ENE"><com:Name xml:lang="es">Ocupación y desocupación</com:Name></str:Code>
+        <str:Code id="INFORMALITY"><com:Name xml:lang="es">Informalidad laboral</com:Name></str:Code>
+      </str:Codelist>
+      <str:Codelist id="CL_SEX" agencyID="INE.GOB.CL" version="2.0">
+        <str:Code id="T"><com:Name xml:lang="es">Total</com:Name></str:Code>
+        <str:Code id="M"><com:Name xml:lang="es">Hombres</com:Name></str:Code>
+        <str:Code id="F"><com:Name xml:lang="es">Mujeres</com:Name></str:Code>
+      </str:Codelist>
+      <str:Codelist id="CL_BREAKDOWN" agencyID="INE.GOB.CL" version="2.0">
+        <str:Code id="INDICATOR_MAIN"><com:Name xml:lang="es">Indicadores principales</com:Name></str:Code>
+        <str:Code id="SEASONAL"><com:Name xml:lang="es">Ajuste estacional</com:Name></str:Code>
+        <str:Code id="ECONOMIC_ACTIVITY"><com:Name xml:lang="es">Rama de actividad</com:Name></str:Code>
+        <str:Code id="OCCUPATIONAL_CATEGORY"><com:Name xml:lang="es">Categoría ocupacional</com:Name></str:Code>
+        <str:Code id="OCCUPATION_GROUP"><com:Name xml:lang="es">Grupo ocupacional</com:Name></str:Code>
+        <str:Code id="EMPLOYMENT_PRESENCE"><com:Name xml:lang="es">Presencia efectiva</com:Name></str:Code>
+      </str:Codelist>
+      <str:Codelist id="CL_EST_QUALITY" agencyID="INE.GOB.CL" version="2.0">
+        <str:Code id="F"><com:Name xml:lang="es">Fiable</com:Name></str:Code>
+        <str:Code id="A"><com:Name xml:lang="es">Poco fiable</com:Name></str:Code>
+        <str:Code id="B"><com:Name xml:lang="es">No fiable</com:Name></str:Code>
+      </str:Codelist>
+    </str:Codelists>
+    <str:DataStructures>
+      <str:DataStructure id="DSD_ENE_MERCADO_LABORAL" agencyID="INE.GOB.CL" version="2.0">
+        <com:Name xml:lang="es">DSD mercado laboral ENE</com:Name>
+        <str:DataStructureComponents>
+          <str:DimensionList id="DimensionDescriptor">
+            <str:Dimension id="FREQ" position="1"/>
+            <str:Dimension id="DATASET" position="2"/>
+            <str:Dimension id="REF_AREA" position="3"/>
+            <str:Dimension id="SEX" position="4"/>
+            <str:Dimension id="BREAKDOWN" position="5"/>
+            <str:Dimension id="CATEGORY" position="6"/>
+            <str:Dimension id="INDICATOR" position="7"/>
+            <str:TimeDimension id="TIME_PERIOD" position="8"/>
+          </str:DimensionList>
+          <str:MeasureList id="MeasureDescriptor"><str:Measure id="OBS_VALUE"/></str:MeasureList>
+          <str:AttributeList id="AttributeDescriptor">
+            <str:Attribute id="UNIT_MEASURE"/><str:Attribute id="UNIT_MULT"/>
+            <str:Attribute id="EST_QUALITY"/><str:Attribute id="REF_PERIOD_START"/>
+            <str:Attribute id="REF_PERIOD_END"/><str:Attribute id="TIME_PERIOD_LABEL"/>
+            <str:Attribute id="SOURCE"/>
+          </str:AttributeList>
+        </str:DataStructureComponents>
+      </str:DataStructure>
+    </str:DataStructures>
+    <str:Dataflows>
+      <str:Dataflow id="DF_ENE_MERCADO_LABORAL" agencyID="INE.GOB.CL" version="2.0">
+        <com:Name xml:lang="es">Ocupación, desocupación e informalidad laboral</com:Name>
+        <str:Structure><com:Ref id="DSD_ENE_MERCADO_LABORAL" agencyID="INE.GOB.CL" version="2.0" class="DataStructure"/></str:Structure>
+      </str:Dataflow>
+    </str:Dataflows>
+  </mes:Structures>
+</mes:Structure>

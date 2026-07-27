@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mes:Structure
+  xmlns:mes="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/message"
+  xmlns:str="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/structure"
+  xmlns:com="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/common">
+  <mes:Header>
+    <mes:ID>INE_PRECIOS_STRUCTURES_1_0</mes:ID>
+    <mes:Test>false</mes:Test>
+    <mes:Prepared>2026-07-27T00:00:00Z</mes:Prepared>
+    <mes:Sender id="INE.GOB.CL"/>
+    <mes:Receiver id="PUBLIC"/>
+  </mes:Header>
+  <mes:Structures>
+    <str:Codelists>
+      <str:Codelist id="CL_FREQ" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Frecuencia</com:Name>
+        <str:Code id="M"><com:Name xml:lang="es">Mensual</com:Name></str:Code>
+      </str:Codelist>
+      <str:Codelist id="CL_DATASET_PRICE" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Operación estadística de precios</com:Name>
+        <str:Code id="IPC"><com:Name xml:lang="es">Índice de Precios al Consumidor</com:Name></str:Code>
+        <str:Code id="IPP"><com:Name xml:lang="es">Índice de Precios de Productor</com:Name></str:Code>
+      </str:Codelist>
+      <str:Codelist id="CL_REF_AREA" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Área de referencia</com:Name>
+        <str:Code id="CL"><com:Name xml:lang="es">Chile</com:Name></str:Code>
+      </str:Codelist>
+      <str:Codelist id="CL_PRICE_INDICATOR" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Indicador de precios</com:Name>
+        <str:Code id="INDEX"><com:Name xml:lang="es">Índice</com:Name></str:Code>
+        <str:Code id="MONTHLY_CHANGE"><com:Name xml:lang="es">Variación mensual</com:Name></str:Code>
+        <str:Code id="ACCUMULATED_CHANGE"><com:Name xml:lang="es">Variación acumulada</com:Name></str:Code>
+        <str:Code id="ANNUAL_CHANGE"><com:Name xml:lang="es">Variación en doce meses</com:Name></str:Code>
+        <str:Code id="MONTHLY_INCIDENCE"><com:Name xml:lang="es">Incidencia mensual</com:Name></str:Code>
+        <str:Code id="WEIGHT"><com:Name xml:lang="es">Ponderación</com:Name></str:Code>
+      </str:Codelist>
+      <str:Codelist id="CL_UNIT_MEASURE_PRICE" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Unidad de medida</com:Name>
+        <str:Code id="INDEX"><com:Name xml:lang="es">Puntos de índice</com:Name></str:Code>
+        <str:Code id="PERCENT"><com:Name xml:lang="es">Porcentaje</com:Name></str:Code>
+      </str:Codelist>
+      <str:Codelist id="CL_EST_QUALITY" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Calidad de la estimación</com:Name>
+        <str:Code id="F"><com:Name xml:lang="es">Estimación fiable</com:Name></str:Code>
+        <str:Code id="A"><com:Name xml:lang="es">Estimación poco fiable</com:Name></str:Code>
+        <str:Code id="B"><com:Name xml:lang="es">Estimación no fiable</com:Name></str:Code>
+      </str:Codelist>
+    </str:Codelists>
+    <str:Concepts>
+      <str:ConceptScheme id="CS_PRICE" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Conceptos de índices de precios</com:Name>
+        <str:Concept id="FREQ"><com:Name xml:lang="es">Frecuencia</com:Name></str:Concept>
+        <str:Concept id="DATASET"><com:Name xml:lang="es">Operación estadística</com:Name></str:Concept>
+        <str:Concept id="REF_AREA"><com:Name xml:lang="es">Área de referencia</com:Name></str:Concept>
+        <str:Concept id="BREAKDOWN"><com:Name xml:lang="es">Desglose</com:Name></str:Concept>
+        <str:Concept id="CATEGORY"><com:Name xml:lang="es">Categoría</com:Name></str:Concept>
+        <str:Concept id="INDICATOR"><com:Name xml:lang="es">Indicador</com:Name></str:Concept>
+        <str:Concept id="TIME_PERIOD"><com:Name xml:lang="es">Período</com:Name></str:Concept>
+        <str:Concept id="OBS_VALUE"><com:Name xml:lang="es">Valor observado</com:Name></str:Concept>
+        <str:Concept id="UNIT_MEASURE"><com:Name xml:lang="es">Unidad de medida</com:Name></str:Concept>
+        <str:Concept id="UNIT_MULT"><com:Name xml:lang="es">Multiplicador</com:Name></str:Concept>
+        <str:Concept id="BASE_PERIOD"><com:Name xml:lang="es">Período base</com:Name></str:Concept>
+        <str:Concept id="EST_QUALITY"><com:Name xml:lang="es">Calidad</com:Name></str:Concept>
+        <str:Concept id="SOURCE"><com:Name xml:lang="es">Fuente</com:Name></str:Concept>
+      </str:ConceptScheme>
+    </str:Concepts>
+    <str:DataStructures>
+      <str:DataStructure id="DSD_IPC" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Estructura del Índice de Precios al Consumidor</com:Name>
+        <str:DataStructureComponents>
+          <str:DimensionList id="DimensionDescriptor">
+            <str:Dimension id="FREQ" position="1"/>
+            <str:Dimension id="DATASET" position="2"/>
+            <str:Dimension id="REF_AREA" position="3"/>
+            <str:Dimension id="BREAKDOWN" position="4"/>
+            <str:Dimension id="CATEGORY" position="5"/>
+            <str:Dimension id="INDICATOR" position="6"/>
+            <str:TimeDimension id="TIME_PERIOD" position="7"/>
+          </str:DimensionList>
+          <str:MeasureList id="MeasureDescriptor">
+            <str:Measure id="OBS_VALUE"/>
+          </str:MeasureList>
+          <str:AttributeList id="AttributeDescriptor">
+            <str:Attribute id="UNIT_MEASURE" assignmentStatus="Mandatory"/>
+            <str:Attribute id="UNIT_MULT" assignmentStatus="Mandatory"/>
+            <str:Attribute id="BASE_PERIOD" assignmentStatus="Mandatory"/>
+            <str:Attribute id="EST_QUALITY" assignmentStatus="Mandatory"/>
+            <str:Attribute id="SOURCE" assignmentStatus="Mandatory"/>
+          </str:AttributeList>
+        </str:DataStructureComponents>
+      </str:DataStructure>
+      <str:DataStructure id="DSD_IPP" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Estructura del Índice de Precios de Productor</com:Name>
+        <str:DataStructureComponents>
+          <str:DimensionList id="DimensionDescriptor">
+            <str:Dimension id="FREQ" position="1"/>
+            <str:Dimension id="DATASET" position="2"/>
+            <str:Dimension id="REF_AREA" position="3"/>
+            <str:Dimension id="BREAKDOWN" position="4"/>
+            <str:Dimension id="CATEGORY" position="5"/>
+            <str:Dimension id="INDICATOR" position="6"/>
+            <str:TimeDimension id="TIME_PERIOD" position="7"/>
+          </str:DimensionList>
+          <str:MeasureList id="MeasureDescriptor">
+            <str:Measure id="OBS_VALUE"/>
+          </str:MeasureList>
+          <str:AttributeList id="AttributeDescriptor">
+            <str:Attribute id="UNIT_MEASURE" assignmentStatus="Mandatory"/>
+            <str:Attribute id="UNIT_MULT" assignmentStatus="Mandatory"/>
+            <str:Attribute id="BASE_PERIOD" assignmentStatus="Mandatory"/>
+            <str:Attribute id="EST_QUALITY" assignmentStatus="Mandatory"/>
+            <str:Attribute id="SOURCE" assignmentStatus="Mandatory"/>
+          </str:AttributeList>
+        </str:DataStructureComponents>
+      </str:DataStructure>
+    </str:DataStructures>
+    <str:Dataflows>
+      <str:Dataflow id="DF_IPC" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Índice de Precios al Consumidor</com:Name>
+        <str:Structure>
+          <Ref id="DSD_IPC" agencyID="INE.GOB.CL" version="1.0" class="DataStructure"/>
+        </str:Structure>
+      </str:Dataflow>
+      <str:Dataflow id="DF_IPP" agencyID="INE.GOB.CL" version="1.0">
+        <com:Name xml:lang="es">Índices de Precios de Productor</com:Name>
+        <str:Structure>
+          <Ref id="DSD_IPP" agencyID="INE.GOB.CL" version="1.0" class="DataStructure"/>
+        </str:Structure>
+      </str:Dataflow>
+    </str:Dataflows>
+  </mes:Structures>
+</mes:Structure>

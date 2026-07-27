@@ -27,7 +27,15 @@ import * as XLSX from "xlsx";
 import EconomicPage from "./EconomicPage";
 import TourismPage from "./TourismPage";
 import SupermarketsPage from "./SupermarketsPage";
+import SectionHeader, {
+  HomeNavLink,
+  type SiteDestination,
+} from "./SectionHeader";
 import { primeDataset, type PrefetchKey } from "../lib/client-data-prefetch";
+import {
+  useTemporalWindow,
+  type TemporalPreset,
+} from "./TemporalChartControls";
 
 type Point = {
   year: number;
@@ -38,6 +46,10 @@ type Point = {
   unemployed: number;
   ceased?: number;
   firstJob?: number;
+  inactive?: number;
+  initiators?: number;
+  potential?: number;
+  habitual?: number;
   participation: number;
   employmentRate: number;
   unemploymentRate: number;
@@ -70,6 +82,7 @@ type EneData = {
 type EneRemoteData = {
   series: Record<string, Point[]>;
   indicatorSeries: Record<string, IndicatorPoint[]>;
+  regionalSeries: Record<string, Point[]>;
   sectorContributions: EneData["sectorContributions"];
   absentEmployment: AbsentEmployment[];
   cache?: {
@@ -385,6 +398,27 @@ function IneLogo({ inverse = false }: { inverse?: boolean }) {
   );
 }
 
+function RelatosHeaderLogo() {
+  // La marca se separa en dos destinos: INE abre el portal institucional y
+  // Relatos Estadísticos vuelve a la portada del sitio.
+  return (
+    <div className="relatos-header-logo">
+      <IneLogo />
+      <a
+        className="relatos-home-link"
+        href="/"
+        aria-label="Ir al inicio de Relatos Estadísticos"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/branding/logo-relatos-estadisticos-home.png"
+          alt="Relatos Estadísticos"
+        />
+      </a>
+    </div>
+  );
+}
+
 // Variaciones publicadas en los boletines nacionales para los componentes de la inactividad.
 const INACTIVE_COMPONENTS = [
   { year: 2026, quarter: "Ene - Mar", potential: 4.9, habitual: 0.4 },
@@ -504,7 +538,7 @@ function Icon({ name }: { name: string }) {
 }
 
 const chartFileName = (shell: HTMLElement, suffix = "") =>
-  `${(shell.querySelector("h2")?.textContent || "grafico-ine")
+  `${(shell.querySelector("h2, h3, h4")?.textContent || "grafico-ine")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -586,8 +620,115 @@ function saveBlob(blob: Blob, name: string) {
 async function downloadChartPng(shell: HTMLElement) {
   const svg = shell.querySelector<SVGSVGElement>("svg.chart");
   if (!svg) return;
+  const chartCanvas = document.createElement("canvas");
+  await paintSvg(svg, chartCanvas, 2);
+
+  // La exportación compone una lámina editorial completa: contexto temporal,
+  // título, orientación de lectura, gráfico y notas/fuente visibles.
+  const heading =
+    shell.querySelector<HTMLElement>(
+      ".chart-head .eyebrow, .ipp-chart-head .eyebrow, .chart-standard-heading .eyebrow",
+    )?.innerText || "Serie histórica";
+  const title =
+    shell.querySelector<HTMLElement>(
+      ".chart-head h2, .chart-head h3, .ipp-chart-head h4, .chart-standard-heading h2",
+    )?.innerText ||
+    svg.getAttribute("aria-label") ||
+    "Gráfico estadístico";
+  const subtitle =
+    shell.querySelector<HTMLElement>(
+      ".chart-subtitle, .chart-standard-heading p",
+    )?.innerText || "";
+  const notes = Array.from(
+    shell.querySelectorAll<HTMLElement>(
+      ".chart-notes p, .chart-source, .econ-caption, .chart-foot span, .ipp-chart > p",
+    ),
+  )
+    .filter((element) => element.offsetParent !== null)
+    .map((element) => element.innerText.trim())
+    .filter((text, index, all) => text && all.indexOf(text) === index);
+
+  const scale = 2;
+  const margin = 44 * scale;
+  const contentWidth = chartCanvas.width;
+  const headerHeight = (subtitle ? 138 : 106) * scale;
+  const noteLineHeight = 19 * scale;
+  const estimatedNoteLines = Math.max(
+    1,
+    notes.reduce((total, note) => total + Math.ceil(note.length / 105), 0),
+  );
+  const notesHeight = notes.length
+    ? (28 + estimatedNoteLines * 19) * scale
+    : 0;
   const canvas = document.createElement("canvas");
-  await paintSvg(svg, canvas);
+  canvas.width = contentWidth + margin * 2;
+  canvas.height = headerHeight + chartCanvas.height + notesHeight + margin;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Dibuja textos con salto automático para conservar notas metodológicas
+  // extensas dentro del ancho de la imagen descargada.
+  const drawWrapped = (
+    text: string,
+    x: number,
+    startY: number,
+    maxWidth: number,
+    lineHeight: number,
+  ) => {
+    const words = text.split(/\s+/);
+    let line = "";
+    let y = startY;
+    words.forEach((word) => {
+      const next = line ? `${line} ${word}` : word;
+      if (context.measureText(next).width > maxWidth && line) {
+        context.fillText(line, x, y);
+        line = word;
+        y += lineHeight;
+      } else line = next;
+    });
+    if (line) context.fillText(line, x, y);
+    return y + lineHeight;
+  };
+
+  context.fillStyle = "#607089";
+  context.font = `800 ${13 * scale}px Arial, sans-serif`;
+  context.fillText(heading.toUpperCase(), margin, 30 * scale);
+  context.fillStyle = "#123f87";
+  context.font = `800 ${27 * scale}px Arial, sans-serif`;
+  drawWrapped(
+    title,
+    margin,
+    64 * scale,
+    contentWidth,
+    31 * scale,
+  );
+  if (subtitle) {
+    context.fillStyle = "#4f6078";
+    context.font = `500 ${15 * scale}px Arial, sans-serif`;
+    drawWrapped(
+      subtitle,
+      margin,
+      103 * scale,
+      contentWidth,
+      20 * scale,
+    );
+  }
+  context.drawImage(chartCanvas, margin, headerHeight);
+  if (notes.length) {
+    context.fillStyle = "#536176";
+    context.font = `500 ${13 * scale}px Arial, sans-serif`;
+    let noteY = headerHeight + chartCanvas.height + 24 * scale;
+    notes.forEach((note) => {
+      noteY = drawWrapped(
+        note,
+        margin,
+        noteY,
+        contentWidth,
+        noteLineHeight,
+      );
+    });
+  }
   canvas.toBlob(
     (blob) => blob && saveBlob(blob, `${chartFileName(shell)}.png`),
     "image/png",
@@ -658,7 +799,9 @@ function useChartDownloads() {
   useEffect(() => {
     const enhance = () =>
       document
-        .querySelectorAll<HTMLElement>(".chart-shell")
+        .querySelectorAll<HTMLElement>(
+          ".chart-shell, .ipp-chart, .econ-chart",
+        )
         .forEach((shell) => {
           if (shell.dataset.exports || !shell.querySelector("svg.chart"))
             return;
@@ -717,6 +860,228 @@ function useChartDownloads() {
   }, []);
 }
 
+// Normaliza el encabezado editorial de todos los gráficos sin exigir que cada
+// fuente de datos utilice la misma estructura interna.
+function useChartStandardHeadings() {
+  useEffect(() => {
+    let frame = 0;
+    const chartSelector = ".chart-shell, .ipp-chart, .econ-chart";
+
+    const text = (element: Element | null) =>
+      element?.textContent?.replace(/\s+/g, " ").trim() || "";
+
+    const rangeFromChart = (shell: HTMLElement) => {
+      const explicit = text(
+        shell.querySelector(".ipp-time-reading strong"),
+      );
+      if (explicit) return explicit.replace(/\s+[—–-]\s+/g, "–");
+
+      const axisLabels = Array.from(
+        shell.querySelectorAll(
+          "svg.chart .x-label, svg.chart .econ-x-label, svg.chart .ipc-x-label, svg.chart .ipp-division-label",
+        ),
+      )
+        .map(text)
+        .filter(Boolean);
+      if (axisLabels.length) {
+        const first = axisLabels[0];
+        const last = axisLabels.at(-1)!;
+        return first === last ? first : `${first}–${last}`;
+      }
+
+      const datedTitles = Array.from(
+        shell.querySelectorAll("svg.chart circle title, svg.chart rect title"),
+      )
+        .map(text)
+        .map((value) => value.split(":")[0].split(",").at(-1)?.trim() || "")
+        .filter((value) => /\b(19|20)\d{2}\b/.test(value));
+      if (datedTitles.length) {
+        const first = datedTitles[0];
+        const last = datedTitles.at(-1)!;
+        return first === last ? first : `${first}–${last}`;
+      }
+      return "período consultado";
+    };
+
+    const enhance = () => {
+      frame = 0;
+      observer.disconnect();
+      document.querySelectorAll<HTMLElement>(chartSelector).forEach((shell) => {
+        const svg = shell.querySelector("svg.chart");
+        if (!svg) return;
+        let standard = shell.querySelector<HTMLElement>(
+          ":scope > .chart-standard-heading",
+        );
+        if (!standard) {
+          standard = document.createElement("div");
+          standard.className = "chart-standard-heading";
+          const kicker = document.createElement("span");
+          kicker.className = "eyebrow chart-period-kicker";
+          standard.append(kicker);
+
+          const localTitle = shell.querySelector(
+            ":scope > .chart-head h2, :scope > .chart-head h3, :scope > .ipp-chart-head h4",
+          );
+          if (!localTitle) {
+            const inferredTitle =
+              text(shell.closest("section")?.querySelector("h2, h3")) ||
+              svg.getAttribute("aria-label") ||
+              "Gráfico estadístico";
+            const title = document.createElement("h2");
+            title.textContent = inferredTitle;
+            standard.append(title);
+          }
+
+          const hasGuidance = Boolean(
+            shell.querySelector(".chart-subtitle"),
+          );
+          const seriesControls = shell.querySelectorAll(
+            ".legend button, .series-legend button, .police-legend button, .series-toggles button, .birth-series-controls button",
+          ).length;
+          const hasMultipleSelect = Boolean(
+            shell.querySelector("select[multiple]"),
+          );
+          if (!hasGuidance && (seriesControls > 1 || hasMultipleSelect)) {
+            const guidance = document.createElement("p");
+            guidance.textContent =
+              "Activa o desactiva las series para comparar su trayectoria.";
+            standard.append(guidance);
+          }
+          shell.prepend(standard);
+        }
+        const kicker = standard.querySelector<HTMLElement>(
+          ".chart-period-kicker",
+        );
+        if (kicker)
+          kicker.textContent = `Serie histórica · ${rangeFromChart(shell)}`;
+      });
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["d", "cx", "cy", "value", "aria-pressed"],
+      });
+    };
+
+    const observer = new MutationObserver(() => {
+      if (!frame) frame = window.requestAnimationFrame(enhance);
+    });
+    enhance();
+    return () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+      document
+        .querySelectorAll(".chart-standard-heading")
+        .forEach((heading) => heading.remove());
+    };
+  }, []);
+}
+
+// Añade rótulos consistentes al primer y último dato de cada serie SVG.
+// Se aplica después de cada actualización para cubrir también los gráficos
+// interactivos sin acoplar el formato de sus datos a un componente específico.
+function useChartEndpointLabels() {
+  useEffect(() => {
+    let frame = 0;
+    const observer = new MutationObserver((mutations) => {
+      const relevant = mutations.some(
+        (mutation) =>
+          !(mutation.target as Element).closest?.(".chart-endpoint-layer"),
+      );
+      if (!relevant || frame) return;
+      frame = window.requestAnimationFrame(enhance);
+    });
+
+    const valueFromTitle = (element: SVGGraphicsElement) => {
+      const title = element.querySelector("title")?.textContent?.trim() || "";
+      const separated = title.split(":").at(-1)?.trim();
+      return separated || title;
+    };
+
+    const enhance = () => {
+      frame = 0;
+      observer.disconnect();
+      document.querySelectorAll<SVGSVGElement>("svg.chart").forEach((svg) => {
+        svg.querySelector(".chart-endpoint-layer")?.remove();
+        const candidates = Array.from(
+          svg.querySelectorAll<SVGGraphicsElement>("circle, rect"),
+        ).filter(
+          (element) =>
+            Boolean(element.querySelector("title")) &&
+            !element.closest(".chart-endpoint-layer") &&
+            !element.closest('[opacity="0"]'),
+        );
+        if (!candidates.length) return;
+        const groups = new Map<string, SVGGraphicsElement[]>();
+        candidates.forEach((element) => {
+          const key = [
+            element.closest("[data-series]")?.getAttribute("data-series") || "",
+            element.getAttribute("class") || "",
+            element.getAttribute("fill") || "",
+            element.getAttribute("stroke") || "",
+            element.style?.fill || "",
+            element.style?.stroke || "",
+          ].join("|");
+          groups.set(key, [...(groups.get(key) || []), element]);
+        });
+        const layer = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "g",
+        );
+        layer.setAttribute("class", "chart-endpoint-layer");
+        groups.forEach((elements) => {
+          const positioned = elements
+            .map((element) => {
+              const box = element.getBBox();
+              return {
+                element,
+                x: box.x + box.width / 2,
+                y: box.y + box.height / 2,
+              };
+            })
+            .sort((a, b) => a.x - b.x);
+          const endpoints =
+            positioned.length === 1
+              ? positioned
+              : [positioned[0], positioned[positioned.length - 1]];
+          endpoints.forEach((point, index) => {
+            const label = valueFromTitle(point.element);
+            if (!label) return;
+            const text = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "text",
+            );
+            text.setAttribute("x", String(point.x));
+            text.setAttribute("y", String(Math.max(13, point.y - 10)));
+            text.setAttribute(
+              "text-anchor",
+              index === 0 ? "start" : "end",
+            );
+            text.textContent = label;
+            layer.append(text);
+          });
+        });
+        if (layer.childNodes.length) svg.append(layer);
+      });
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["opacity", "d", "cx", "cy", "x", "y"],
+      });
+    };
+
+    enhance();
+    return () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+      document
+        .querySelectorAll(".chart-endpoint-layer")
+        .forEach((layer) => layer.remove());
+    };
+  }, []);
+}
+
 function Chart({
   data,
   indicatorId,
@@ -734,16 +1099,35 @@ function Chart({
   year: number;
   quarter: string;
 }) {
-  // El período seleccionado fija el extremo derecho; se muestran exactamente los últimos 13 trimestres móviles.
+  // El período seleccionado fija el extremo derecho y los controles permiten
+  // ampliar la historia sin perder la lectura narrativa inicial.
   const meta =
     data.indicators.find((item) => item.id === indicatorId) ??
     data.indicators[10];
   const endIndex = data.series.Total.findIndex(
     (q) => q.year === year && q.quarter === quarter,
   );
+  const availableTotal = data.series.Total.slice(0, endIndex + 1);
+  const temporalPresets: TemporalPreset[] = [
+    { value: 25, label: "25 períodos" },
+    { value: 60, label: "5 años" },
+    { value: 120, label: "10 años" },
+    { value: "all", label: "Serie completa" },
+  ];
+  const temporal = useTemporalWindow(
+    availableTotal,
+    availableTotal.map(
+      (point) => `${formatQuarter(point.quarter)} ${point.year}`,
+    ),
+    temporalPresets,
+    25,
+  );
   const visible: Record<string, IndicatorPoint[]> = {};
   Object.keys(data.series).forEach(
-    (k) => (visible[k] = data.series[k].slice(0, endIndex + 1).slice(-13)),
+    (k) =>
+      (visible[k] = data.series[k]
+        .slice(0, endIndex + 1)
+        .slice(temporal.start, temporal.end + 1)),
   );
   const values = active.flatMap((k) =>
     (visible[k] || [])
@@ -897,6 +1281,7 @@ function Chart({
           );
         })}
       </svg>
+      {temporal.controls}
       <div className="chart-notes">
         {footnote[indicatorId] && <p>{footnote[indicatorId]}</p>}
         {notes.has("a") && (
@@ -1033,6 +1418,7 @@ function PriceHeader({
   onCommerce?: () => void;
   onTourism?: () => void;
   current:
+    | "informality"
     | "ipc"
     | "ipp"
     | "births"
@@ -1059,26 +1445,32 @@ function PriceHeader({
     <header>
       <div className="topbar">
         <div className="brand">
-          <IneLogo />
-          <b>
-            INE <em>|</em> Relatos Estadísticos
-          </b>
+          <RelatosHeaderLogo />
         </div>
         <nav className="utility">
           <a href="https://www.ine.gob.cl/institucional/">Acerca del INE</a>
         </nav>
       </div>
       <nav className="topics">
+        <HomeNavLink />
         <div
           className={`topic-dropdown ${laborOpen ? "open" : ""}`}
           onMouseLeave={() => setLaborOpen(false)}
         >
-          <button onClick={() => setLaborOpen((value) => !value)}>
+          <button
+            className={current === "informality" ? "active" : ""}
+            onClick={() => setLaborOpen((value) => !value)}
+          >
             Mercado laboral
           </button>
           <div className="topic-submenu">
             <button onClick={onLabor}>Ocupación y desocupación</button>
-            <button onClick={onInformality}>Informalidad laboral</button>
+            <button
+              aria-current={current === "informality" ? "page" : undefined}
+              onClick={onInformality}
+            >
+              Informalidad laboral
+            </button>
           </div>
         </div>
         <div
@@ -1265,14 +1657,25 @@ function IpcChart({
     [data],
   );
   // El período seleccionado fija el extremo derecho de la serie histórica.
-  const points = data.series
-    .filter(
+  const availablePoints = data.series.filter(
       (p) =>
         p.division === division &&
         (p.year < selectedYear ||
           (p.year === selectedYear && p.month <= selectedMonth)),
-    )
-    .slice(-25);
+    );
+  const ipcTemporalPresets: TemporalPreset[] = [
+    { value: 25, label: "25 períodos" },
+    { value: 60, label: "5 años" },
+    { value: 120, label: "10 años" },
+    { value: "all", label: "Serie completa" },
+  ];
+  const temporal = useTemporalWindow(
+    availablePoints,
+    availablePoints.map((point) => `${MONTHS[point.month]} ${point.year}`),
+    ipcTemporalPresets,
+    25,
+  );
+  const points = temporal.visible;
   const values = points.map((p) => p[indicator]);
   const rawMin = Math.min(...values),
     rawMax = Math.max(...values),
@@ -1399,6 +1802,7 @@ function IpcChart({
           </circle>
         ))}
       </svg>
+      {temporal.controls}
       <div className="chart-foot">
         <span>
           Fuente: INE, Índice de Precios al Consumidor. Base anual {data.base}.
@@ -2167,6 +2571,7 @@ function IpcPage({
             </a>
           </div>
           <IpcCalculator />
+          <PriceSdmxBox dataset="IPC" />
         </div>
       </section>
       <footer>
@@ -2203,11 +2608,32 @@ function IppSeriesChart({
   month: number;
 }) {
   const [metric, setMetric] = useState<IppMetric>("annual");
+  const [quickRange, setQuickRange] = useState<"25" | "60" | "120" | "all">(
+    "25",
+  );
+  const [customRange, setCustomRange] = useState(false);
   // Cada cambio de indicador recalcula la escala y reinicia una transición breve, sin movimientos decorativos excesivos.
   const end = series.findIndex(
     (point) => point.year === year && point.month === month,
   );
-  const points = series.slice(0, end + 1).slice(-13);
+  const available = series.slice(0, end + 1);
+  const defaultLength = Math.min(25, available.length);
+  const [rangeStart, setRangeStart] = useState(
+    Math.max(0, available.length - defaultLength),
+  );
+  const [rangeEnd, setRangeEnd] = useState(Math.max(0, available.length - 1));
+  useEffect(() => {
+    setRangeStart(Math.max(0, available.length - defaultLength));
+    setRangeEnd(Math.max(0, available.length - 1));
+  }, [available.length, defaultLength]);
+  const selectedLength =
+    quickRange === "all" ? available.length : Number(quickRange);
+  const quickStart = Math.max(0, available.length - selectedLength);
+  const visibleStart = !customRange ? quickStart : rangeStart;
+  const visibleEnd = !customRange
+    ? Math.max(0, available.length - 1)
+    : Math.min(rangeEnd, Math.max(0, available.length - 1));
+  const points = available.slice(visibleStart, visibleEnd + 1);
   const values = points.map((point) => point[metric]);
   const includeZero = metric !== "index";
   const bounded = includeZero ? [...values, 0] : values;
@@ -2239,6 +2665,13 @@ function IppSeriesChart({
     `${MONTHS[point.month].slice(0, 3).toLowerCase()}-${String(point.year).slice(-2)}`;
   const format = (value: number) =>
     `${value.toFixed(metric === "index" ? 2 : 1).replace(".", ",")}${metric === "index" ? "" : "%"}`;
+  const periodName = (point: IppPoint | undefined) =>
+    point ? `${MONTHS[point.month]} ${point.year}` : "Sin datos";
+  const labelStep = Math.max(1, Math.ceil(points.length / 12));
+  const selectQuickRange = (value: "25" | "60" | "120" | "all") => {
+    setQuickRange(value);
+    setCustomRange(false);
+  };
   return (
     <div className="ipp-chart">
       <div className="ipp-chart-head">
@@ -2271,15 +2704,17 @@ function IppSeriesChart({
             </text>
           </g>
         ))}
-        {points.map((point, index) => (
-          <text
-            key={`${point.year}-${point.month}`}
-            transform={`translate(${x(index)},${h - pB + 14}) rotate(-90)`}
-            textAnchor="end"
-          >
-            {short(point)}
-          </text>
-        ))}
+        {points.map((point, index) =>
+          index % labelStep === 0 || index === points.length - 1 ? (
+            <text
+              key={`${point.year}-${point.month}`}
+              transform={`translate(${x(index)},${h - pB + 14}) rotate(-90)`}
+              textAnchor="end"
+            >
+              {short(point)}
+            </text>
+          ) : null,
+        )}
         <path className="line" d={line} style={{ stroke: "#123f87" }} />
         {points.map((point, index) => (
           <circle
@@ -2295,7 +2730,85 @@ function IppSeriesChart({
           </circle>
         ))}
       </svg>
-      <p>Fuente: INE. Base anual 2019=100. Últimos 13 meses.</p>
+      <div className="ipp-time-levels">
+          <div className="ipp-time-reading">
+            <span>Lectura actual</span>
+            <strong>
+              {periodName(points[0])} — {periodName(points.at(-1))}
+            </strong>
+            <small>{points.length} períodos visibles</small>
+          </div>
+          <div className="ipp-time-quick" aria-label="Rangos históricos rápidos">
+            <span>Ampliar período</span>
+            <div>
+              {[
+                ["25", "25 períodos"],
+                ["60", "5 años"],
+                ["120", "10 años"],
+                ["all", "Serie completa"],
+              ].map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  aria-pressed={!customRange && quickRange === value}
+                  onClick={() =>
+                    selectQuickRange(value as "25" | "60" | "120" | "all")
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-pressed={customRange}
+                onClick={() => setCustomRange((current) => !current)}
+              >
+                Elegir fechas
+              </button>
+            </div>
+          </div>
+          {customRange && (
+            <div className="ipp-time-custom">
+              <label>
+                Desde
+                <select
+                  value={rangeStart}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    setRangeStart(next);
+                    if (next > rangeEnd) setRangeEnd(next);
+                  }}
+                >
+                  {available.map((point, index) => (
+                    <option key={`${point.year}-${point.month}`} value={index}>
+                      {periodName(point)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Hasta
+                <select
+                  value={rangeEnd}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    setRangeEnd(next);
+                    if (next < rangeStart) setRangeStart(next);
+                  }}
+                >
+                  {available.map((point, index) => (
+                    <option key={`${point.year}-${point.month}`} value={index}>
+                      {periodName(point)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+        </div>
+      <p>
+        Fuente: INE. Base anual 2019=100. {points.length} períodos visibles.
+      </p>
     </div>
   );
 }
@@ -2326,10 +2839,21 @@ function IppDivisionChart({
     (point) =>
       point.year === year && point.month === month && point.division === 10,
   );
-  const periods = series
+  const allPeriods = series
     .filter((point) => point.division === 10)
-    .slice(0, end + 1)
-    .slice(-13);
+    .slice(0, end + 1);
+  const divisionTemporal = useTemporalWindow(
+    allPeriods,
+    allPeriods.map((point) => `${MONTHS[point.month]} ${point.year}`),
+    [
+      { value: 25, label: "25 períodos" },
+      { value: 60, label: "5 años" },
+      { value: 120, label: "10 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    25,
+  );
+  const periods = divisionTemporal.visible;
   const visibleSeries = selectedDivisions.map((division) => ({
     division,
     label:
@@ -2531,9 +3055,10 @@ function IppDivisionChart({
           );
         })}
       </svg>
+      {divisionTemporal.controls}
       <p>
-        Últimos 13 meses hasta {MONTHS[month]} {year}. Divisiones identificadas
-        mediante la columna Glosa del cuadro oficial.
+        {periods.length} períodos visibles hasta {MONTHS[month]} {year}.
+        Divisiones identificadas mediante la columna Glosa del cuadro oficial.
       </p>
     </div>
   );
@@ -2683,27 +3208,43 @@ function IppPage({
   );
   useEffect(() => {
     let active = true;
-    fetch("/api/ipp-data", { cache: "no-store" })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok)
-          throw new Error(payload.error || "No fue posible actualizar el IPP");
-        return payload as {
-          data: IppData;
-          divisions: IppDivisionPoint[];
-        };
-      })
-      .then((payload) => {
-        if (!active || !payload.data?.industries?.length) return;
-        setData(payload.data);
-        if (payload.divisions?.length)
-          setManufacturingDivisions(payload.divisions);
-        const latest = payload.data.industries.at(-1);
-        if (latest) setPeriod(`${latest.year}-${latest.month}`);
-      })
-      .catch(() => {
-        // La copia incluida permanece visible cuando la fuente oficial no responde.
-      });
+    const read = async (url: string) => {
+      const response = await fetch(url, { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok)
+        throw new Error(payload.error || "No fue posible actualizar el IPP");
+      return payload as {
+        data: IppData;
+        divisions: IppDivisionPoint[];
+      };
+    };
+    const apply = (payload: {
+      data: IppData;
+      divisions: IppDivisionPoint[];
+    }) => {
+      if (!active || !payload.data?.industries?.length) return;
+      setData(payload.data);
+      if (payload.divisions?.length)
+        setManufacturingDivisions(payload.divisions);
+      const latest = payload.data.industries.at(-1);
+      if (latest) setPeriod(`${latest.year}-${latest.month}`);
+    };
+    const synchronize = async () => {
+      // La copia incorporada se ve desde el primer render. Luego se recupera
+      // D1 sin tocar ine.gob.cl y, en una segunda petición, se verifica si la
+      // fuente oficial cambió durante el día.
+      try {
+        apply(await read("/api/ipp-data"));
+      } catch {
+        // Si D1 aún no fue inicializada, la copia incorporada sigue visible.
+      }
+      try {
+        apply(await read("/api/ipp-data?refresh=1"));
+      } catch {
+        // La última copia disponible permanece visible si el INE no responde.
+      }
+    };
+    void synchronize();
     return () => {
       active = false;
     };
@@ -2878,6 +3419,15 @@ function IppPage({
         year={year}
         month={month}
       />
+      <section className="resources">
+        <div className="wrap">
+          <div className="section-title">
+            <span className="eyebrow">Centro de recursos</span>
+            <h2>Datos y documentación del IPP</h2>
+          </div>
+          <PriceSdmxBox dataset="IPP" />
+        </div>
+      </section>
       <footer>
         <div className="wrap">
           <div className="brand inverse">
@@ -2895,8 +3445,8 @@ function IppPage({
 }
 
 function InformalityLineChart({
-  points,
-  categoryPoints,
+  points: allPoints,
+  categoryPoints: allCategoryPoints,
   categoryFootnotes,
 }: {
   points: InformalityRate[];
@@ -2905,6 +3455,25 @@ function InformalityLineChart({
 }) {
   const [mode, setMode] = useState<"" | "rate" | "count">("rate");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const informalityPresets: TemporalPreset[] = [
+    { value: 25, label: "25 períodos" },
+    { value: 60, label: "5 años" },
+    { value: 120, label: "10 años" },
+    { value: "all", label: "Serie completa" },
+  ];
+  const temporal = useTemporalWindow(
+    allPoints,
+    allPoints.map(
+      (point) => `${formatQuarter(point.quarter)} ${point.year}`,
+    ),
+    informalityPresets,
+    25,
+  );
+  const points = temporal.visible;
+  const categoryPoints = allCategoryPoints.slice(
+    temporal.start,
+    temporal.end + 1,
+  );
   const tween = useChartTween(
     { mode, selectedCategories },
     `${mode}|${selectedCategories.join("-")}`,
@@ -3259,6 +3828,7 @@ function InformalityLineChart({
           );
         })}
       </svg>
+      {temporal.controls}
       <div className="chart-notes informal-chart-notes">
         {Array.from(visibleReferences).map((reference) => (
           <p key={reference}>
@@ -3414,6 +3984,231 @@ function IncidenceList({
   );
 }
 
+function LaborSdmxBox({context}: {context: "ene" | "informality"}) {
+  const titleId = `labor-sdmx-title-${context}`;
+  return (
+    <section className="ene-sdmx" aria-labelledby={titleId}>
+      <div className="ene-sdmx-head">
+        <div>
+          <span className="eyebrow">Datos abiertos · SDMX y API</span>
+          <h3 id={titleId}>Todo el mercado laboral en una misma fuente</h3>
+          <p>
+            Descarga las series de Ocupación y Desocupación e Informalidad
+            Laboral, consulta su estructura o intégralas directamente en tus
+            aplicaciones. La API revisa los Excel oficiales y añade
+            automáticamente los nuevos períodos a la caché pública.
+          </p>
+        </div>
+        <span className="api-badge">Dataflow laboral · versión 2.0</span>
+      </div>
+      <div className="ene-sdmx-options">
+        <article>
+          <span>01</span>
+          <h4>Descargar todos los datos</h4>
+          <p>
+            Indicadores principales y desagregaciones por sexo, actividad
+            económica, categoría ocupacional, grupo de ocupación y presencia
+            efectiva en el empleo.
+          </p>
+          <a
+            href="/api/sdmx/data/INE.GOB.CL,DF_ENE_MERCADO_LABORAL,2.0/all"
+            download
+          >
+            Descargar SDMX-CSV 2.0 ↓
+          </a>
+        </article>
+        <article>
+          <span>02</span>
+          <h4>Explorar la estructura</h4>
+          <p>
+            Conceptos, listas de códigos, DSD y Dataflow con agencia oficial
+            INE.GOB.CL y cobertura laboral ampliada.
+          </p>
+          <a href="/sdmx/00_Estructuras_Empleo_2.0.xml" download>
+            Descargar estructuras SDMX-ML 3.0 ↓
+          </a>
+        </article>
+        <article>
+          <span>03</span>
+          <h4>Consumir mediante API</h4>
+          <p>
+            Filtra por conjunto, sexo, desglose, categoría, indicador y cantidad
+            de períodos. La respuesta conserva los decimales de origen.
+          </p>
+          <a
+            href="/api/sdmx/data/INE.GOB.CL,DF_ENE_MERCADO_LABORAL,2.0/all?format=json"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ver metadatos de la API ↗
+          </a>
+        </article>
+      </div>
+      <div className="ene-api-example">
+        <div>
+          <span>Ejemplo · conjunto completo</span>
+          <code>
+            GET /api/sdmx/data/INE.GOB.CL,DF_ENE_MERCADO_LABORAL,2.0/all
+          </code>
+        </div>
+        <div className="ene-api-query-example">
+          <span>Ejemplo · Informalidad por rama · últimos 13 períodos</span>
+          <code>
+            GET /api/sdmx/data/INE.GOB.CL,DF_ENE_MERCADO_LABORAL,2.0/all?dataset=INFORMALITY&amp;breakdown=ECONOMIC_ACTIVITY&amp;last_n_periods=13
+          </code>
+          <a
+            href="/api/sdmx/data/INE.GOB.CL,DF_ENE_MERCADO_LABORAL,2.0/all?dataset=INFORMALITY&breakdown=ECONOMIC_ACTIVITY&last_n_periods=13"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ejecutar consulta y descargar SDMX-CSV ↗
+          </a>
+        </div>
+        <div className="ene-api-meta" aria-label="Metadatos del conjunto">
+          <span><b>Frecuencia</b> Trimestre móvil</span>
+          <span><b>Ámbito</b> Nacional</span>
+          <span><b>Sexo</b> Total, mujeres y hombres</span>
+          <span><b>Calidad</b> F, A y B</span>
+        </div>
+        <p>
+          Dimensiones: <b>DATASET</b>, <b>REF_AREA</b>, <b>SEX</b>,{" "}
+          <b>BREAKDOWN</b>, <b>CATEGORY</b>, <b>INDICATOR</b> y{" "}
+          <b>TIME_PERIOD</b>. El período identifica el mes final del trimestre
+          móvil. La ruta anterior del piloto permanece disponible por
+          compatibilidad.
+        </p>
+        <div className="ene-sdmx-secondary">
+          <a href="/sdmx/Guia_tecnica_Empleo_SDMX_2.0.pdf" download>
+            Guía técnica en PDF ↓
+          </a>
+          <a href="/sdmx/Informe_estructura_SDMX_Empleo_2.0.pdf" download>
+            Informe de estructura ↓
+          </a>
+          <a href="/sdmx/transformar_empleo_sdmx.py" download>
+            Actualizador automatizado ↓
+          </a>
+          <a href="/sdmx/informe_validacion_empleo_2.0.json" download>
+            Informe de validación ↓
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PriceSdmxBox({dataset}: {dataset: "IPC" | "IPP"}) {
+  const isIpc = dataset === "IPC";
+  const dataflow = isIpc ? "DF_IPC" : "DF_IPP";
+  const titleId = `price-sdmx-title-${dataset.toLowerCase()}`;
+  const apiPath = `/api/sdmx/data/INE.GOB.CL,${dataflow},1.0/all`;
+  return (
+    <section className="ene-sdmx price-sdmx" aria-labelledby={titleId}>
+      <div className="ene-sdmx-head">
+        <div>
+          <span className="eyebrow">Datos abiertos · SDMX y API</span>
+          <h3 id={titleId}>
+            {isIpc
+              ? "IPC interoperable y reutilizable"
+              : "Todos los índices de precios de productor"}
+          </h3>
+          <p>
+            Descarga las series en SDMX-CSV, consulta la estructura formal o
+            intégralas mediante API. Los nuevos meses se incorporan
+            automáticamente cuando cambian los archivos oficiales del INE.
+          </p>
+        </div>
+        <span className="api-badge">Dataflow {dataset} · versión 1.0</span>
+      </div>
+      <div className="ene-sdmx-options">
+        <article>
+          <span>01</span>
+          <h4>Descargar todos los datos</h4>
+          <p>
+            {isIpc
+              ? "IPC general, divisiones CCIF e índices analíticos, con todos los decimales disponibles."
+              : "IPP Industrias, sin cobre, manufactura, minería, IPDEGA, divisiones e impulsores."}
+          </p>
+          <a href={apiPath} download>
+            Descargar SDMX-CSV 1.0 ↓
+          </a>
+        </article>
+        <article>
+          <span>02</span>
+          <h4>Explorar la estructura</h4>
+          <p>
+            Conceptos, listas de códigos, DSD y Dataflow con agencia oficial
+            INE.GOB.CL, frecuencia mensual y período base.
+          </p>
+          <a href="/sdmx/00_Estructuras_Precios_1.0.xml" download>
+            Descargar estructuras SDMX-ML 3.0 ↓
+          </a>
+        </article>
+        <article>
+          <span>03</span>
+          <h4>Consumir mediante API</h4>
+          <p>
+            Filtra por desglose, categoría, indicador, rango temporal o número
+            de meses recientes.
+          </p>
+          <a
+            href={`/api/sdmx/metadata?dataset=${dataset}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ver metadatos de la API ↗
+          </a>
+        </article>
+      </div>
+      <div className="ene-api-example">
+        <div>
+          <span>Ejemplo · conjunto completo</span>
+          <code>GET {apiPath}</code>
+        </div>
+        <div className="ene-api-query-example">
+          <span>Ejemplo · últimos 25 meses del índice y sus variaciones</span>
+          <code>
+            GET {apiPath}?indicator=INDEX,MONTHLY_CHANGE,ANNUAL_CHANGE&amp;last_n_periods=25
+          </code>
+          <a
+            href={`${apiPath}?indicator=INDEX,MONTHLY_CHANGE,ANNUAL_CHANGE&last_n_periods=25`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ejecutar consulta y descargar SDMX-CSV ↗
+          </a>
+        </div>
+        <div className="ene-api-meta" aria-label={`Metadatos del ${dataset}`}>
+          <span><b>Frecuencia</b> Mensual</span>
+          <span><b>Ámbito</b> Nacional</span>
+          <span><b>Agencia</b> INE.GOB.CL</span>
+          <span><b>Precisión</b> Decimales de origen</span>
+        </div>
+        <p>
+          Dimensiones: <b>DATASET</b>, <b>REF_AREA</b>, <b>BREAKDOWN</b>,{" "}
+          <b>CATEGORY</b>, <b>INDICATOR</b> y <b>TIME_PERIOD</b>. Las
+          observaciones sin marcas de calidad “a” o “b” se codifican como{" "}
+          <b>F</b> (estimación fiable), según el criterio aplicado al mercado
+          laboral.
+        </p>
+        <div className="ene-sdmx-secondary">
+          <a href="/sdmx/Guia_tecnica_Precios_SDMX_1.0.pdf" download>
+            Guía técnica en PDF ↓
+          </a>
+          <a href="/sdmx/Informe_estructura_SDMX_Precios_1.0.pdf" download>
+            Informe de estructura en PDF ↓
+          </a>
+          <a href="/sdmx/transformar_precios_sdmx.py" download>
+            Transformador automatizado ↓
+          </a>
+          <a href="/sdmx/informe_validacion_precios_1.0.json" download>
+            Informe de validación ↓
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function InformalityPage({
   onEne,
   onIpc,
@@ -3524,7 +4319,7 @@ function InformalityPage({
   const topBranches = rank(branch?.items, branchPrev?.items).slice(0, 3),
     topCategories = rank(category?.items, categoryPrev?.items).slice(0, 3),
     topGroups = rank(group?.items, groupPrev?.items).slice(0, 3),
-    chartPoints = data.rates.slice(0, index + 1).slice(-13),
+    chartPoints = data.rates.slice(0, index + 1),
     categoryChartPoints = chartPoints.map(
       (point) =>
         data.categorySeries.find(
@@ -3558,7 +4353,7 @@ function InformalityPage({
         onBirths={onBirths}
         onFertility={onFertility}
         onDeaths={onDeaths}
-        current="ipc"
+        current="informality"
       />
       <section className="hero wrap ipc-hero informal-hero">
         <div>
@@ -3824,6 +4619,7 @@ function InformalityPage({
               <b>Ver documentación ↗</b>
             </a>
           </div>
+          <LaborSdmxBox context="informality" />
         </div>
       </section>
       <footer>
@@ -3851,9 +4647,18 @@ const BIRTH_SERIES = {
 type BirthSeriesKey = keyof typeof BIRTH_SERIES;
 
 function BirthLineChart({ data }: { data: BirthPoint[] }) {
-  const [metric, setMetric] = useState<BirthSeriesKey>("observed"),
-    [start, setStart] = useState(Math.max(0, data.length - 11));
-  const points = data.slice(start, start + 11),
+  const [metric, setMetric] = useState<BirthSeriesKey>("observed");
+  const temporal = useTemporalWindow(
+    data,
+    data.map((point) => `${point.year}${point.provisional ? "(p)" : ""}`),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const points = temporal.visible,
     values = points.map((point) => point[metric]),
     rawMin = Math.min(...values),
     rawMax = Math.max(...values),
@@ -3941,23 +4746,6 @@ function BirthLineChart({ data }: { data: BirthPoint[] }) {
           </circle>
         ))}
       </svg>
-      <div className="birth-window-controls">
-        <button
-          disabled={start === 0}
-          onClick={() => setStart(Math.max(0, start - 11))}
-        >
-          ← Años anteriores
-        </button>
-        <span>
-          {points[0].year}–{points.at(-1)?.year}
-        </span>
-        <button
-          disabled={start >= data.length - 11}
-          onClick={() => setStart(Math.min(data.length - 11, start + 11))}
-        >
-          Años siguientes →
-        </button>
-      </div>
     </div>
   );
 }
@@ -4258,10 +5046,25 @@ function BirthComparisonChart({
   );
 }
 
-function FertilityTrendChart({ data }: { data: FertilityPoint[] }) {
+function FertilityTrendChart({
+  data: allData,
+}: {
+  data: FertilityPoint[];
+}) {
   const [metric, setMetric] = useState<"birthRate" | "generalRate">(
-      "birthRate",
-    ),
+    "birthRate",
+  );
+  const temporal = useTemporalWindow(
+    allData,
+    allData.map((point) => String(point.year)),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const data = temporal.visible,
     w = 900,
     h = 390,
     pL = 70,
@@ -4348,6 +5151,7 @@ function FertilityTrendChart({ data }: { data: FertilityPoint[] }) {
           </circle>
         ))}
       </svg>
+      {temporal.controls}
       <p className="chart-source">
         Por cada 1.000 personas (natalidad) o mujeres de 15 a 49 años
         (fecundidad general).
@@ -4469,7 +5273,7 @@ function SpecificFertilityChart({ data }: { data: FertilityPoint[] }) {
 }
 
 function FertilitySelectorChart({
-  data,
+  data: allData,
   kind,
 }: {
   data: FertilityPoint[];
@@ -4487,8 +5291,19 @@ function FertilitySelectorChart({
           medianMotherAge: "Edad mediana de las madres",
         };
   const [metric, setMetric] = useState<keyof FertilityPoint>(
-      Object.keys(options)[0] as keyof FertilityPoint,
-    ),
+    Object.keys(options)[0] as keyof FertilityPoint,
+  );
+  const temporal = useTemporalWindow(
+    allData,
+    allData.map((point) => String(point.year)),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const data = temporal.visible,
     w = 900,
     h = 390,
     pL = 68,
@@ -4583,6 +5398,7 @@ function FertilitySelectorChart({
           </circle>
         ))}
       </svg>
+      {temporal.controls}
     </div>
   );
 }
@@ -4876,8 +5692,19 @@ const EARLY_DEATH_SERIES = {
   fetal: "Defunciones fetales",
 } as const;
 
-function DeathTrendChart({ data }: { data: DeathPoint[] }) {
-  const [metric, setMetric] = useState<keyof typeof DEATH_SERIES>("total"),
+function DeathTrendChart({ data: allData }: { data: DeathPoint[] }) {
+  const [metric, setMetric] = useState<keyof typeof DEATH_SERIES>("total");
+  const temporal = useTemporalWindow(
+    allData,
+    allData.map((point) => String(point.year)),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const data = temporal.visible,
     values = data.map((point) => point[metric] as number),
     min = Math.min(...values) * 0.9,
     max = Math.max(...values) * 1.08,
@@ -4967,12 +5794,13 @@ function DeathTrendChart({ data }: { data: DeathPoint[] }) {
           </circle>
         ))}
       </svg>
+      {temporal.controls}
     </div>
   );
 }
 
 function EarlyDeathsChart({
-  data,
+  data: allData,
   mode,
 }: {
   data: DeathPoint[];
@@ -4980,8 +5808,19 @@ function EarlyDeathsChart({
 }) {
   type EarlyKey = keyof typeof EARLY_DEATH_SERIES;
   const [metric, setMetric] = useState<EarlyKey>(
-      mode === "counts" ? "infant" : "neonatal",
-    ),
+    mode === "counts" ? "infant" : "neonatal",
+  );
+  const temporal = useTemporalWindow(
+    allData,
+    allData.map((point) => String(point.year)),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const data = temporal.visible,
     rateKey: Record<EarlyKey, keyof DeathPoint> = {
       neonatal: "neonatalPerThousandBirths",
       infant: "infantPerThousandBirths",
@@ -5083,6 +5922,7 @@ function EarlyDeathsChart({
           </circle>
         ))}
       </svg>
+      {temporal.controls}
       <p className="chart-source">
         Las razones se calcularon con nacimientos observados. Los valores no
         publicados en la fuente oficial se muestran como interrupciones de la
@@ -5293,7 +6133,11 @@ const LIFE_SERIES = {
   lifeWomen: { label: "Mujeres", color: "#e43d37" },
 } as const;
 
-function MortalityRatesChart({ data }: { data: MortalityPoint[] }) {
+function MortalityRatesChart({
+  data: allData,
+}: {
+  data: MortalityPoint[];
+}) {
   type RateKey = keyof typeof MORTALITY_RATES;
   const colors: Record<RateKey, string> = {
       crude: "#123f87",
@@ -5308,7 +6152,18 @@ function MortalityRatesChart({ data }: { data: MortalityPoint[] }) {
       "neonatal",
       "fetal",
       "under5",
-    ]),
+    ]);
+  const temporal = useTemporalWindow(
+    allData,
+    allData.map((point) => String(point.year)),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const data = temporal.visible,
     w = 900,
     h = 430,
     pL = 70,
@@ -5442,6 +6297,7 @@ function MortalityRatesChart({ data }: { data: MortalityPoint[] }) {
           </g>
         ))}
       </svg>
+      {temporal.controls}
       <p className="chart-source">
         Las tasas infantil, neonatal, fetal y en la niñez se expresan por 1.000;
         la tasa bruta corresponde a defunciones por 1.000 habitantes. No se unen
@@ -5451,13 +6307,28 @@ function MortalityRatesChart({ data }: { data: MortalityPoint[] }) {
   );
 }
 
-function LifeExpectancyChart({ data }: { data: MortalityPoint[] }) {
+function LifeExpectancyChart({
+  data: allData,
+}: {
+  data: MortalityPoint[];
+}) {
   type LifeKey = keyof typeof LIFE_SERIES;
   const [active, setActive] = useState<LifeKey[]>([
       "lifeBoth",
       "lifeMen",
       "lifeWomen",
-    ]),
+    ]);
+  const temporal = useTemporalWindow(
+    allData,
+    allData.map((point) => String(point.year)),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const data = temporal.visible,
     w = 900,
     h = 410,
     pL = 68,
@@ -5553,6 +6424,7 @@ function LifeExpectancyChart({ data }: { data: MortalityPoint[] }) {
           </g>
         ))}
       </svg>
+      {temporal.controls}
     </div>
   );
 }
@@ -5682,14 +6554,34 @@ function LifeExpectancyBars({ data }: { data: MortalityPoint[] }) {
 }
 
 function UnionTotalsChart({
-  marriages,
-  auc,
+  marriages: allMarriages,
+  auc: allAuc,
 }: {
   marriages: MarriagePoint[];
   auc: AucPoint[];
 }) {
-  const [active, setActive] = useState(["marriages", "auc"]),
-    series = {
+  const [active, setActive] = useState(["marriages", "auc"]);
+  const temporal = useTemporalWindow(
+    allMarriages,
+    allMarriages.map((point) => String(point.year)),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const marriages = temporal.visible;
+  const auc = allAuc.filter(
+    (point) =>
+      point.year >= marriages[0].year &&
+      point.year <= marriages.at(-1)!.year,
+  );
+  const [firstYear, lastYear] = [
+    marriages[0].year,
+    marriages.at(-1)!.year,
+  ];
+  const series = {
       marriages: {
         label: "Matrimonios",
         color: "#123f87",
@@ -5703,8 +6595,8 @@ function UnionTotalsChart({
         color: "#e43d37",
         points: auc.map((point) => ({ year: point.year, value: point.total })),
       },
-    },
-    w = 900,
+  };
+  const w = 900,
     h = 420,
     pL = 78,
     pR = 24,
@@ -5716,7 +6608,10 @@ function UnionTotalsChart({
           series[key as keyof typeof series].points.map((point) => point.value),
         ),
       ) * 1.1,
-    x = (year: number) => pL + ((year - 1992) * (w - pL - pR)) / (2024 - 1992),
+    x = (year: number) =>
+      pL +
+      ((year - firstYear) * (w - pL - pR)) /
+        Math.max(1, lastYear - firstYear),
     y = (value: number) => h - pB - (value * (h - pT - pB)) / max,
     toggle = (key: string) =>
       setActive((current) =>
@@ -5803,18 +6698,37 @@ function UnionTotalsChart({
           );
         })}
       </svg>
+      {temporal.controls}
     </div>
   );
 }
 
 function UnionRatesChart({
-  marriages,
-  auc,
+  marriages: allMarriages,
+  auc: allAuc,
 }: {
   marriages: MarriagePoint[];
   auc: AucPoint[];
 }) {
-  const series = [
+  const temporal = useTemporalWindow(
+    allMarriages,
+    allMarriages.map((point) => String(point.year)),
+    [
+      { value: 11, label: "11 años" },
+      { value: 20, label: "20 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    11,
+  );
+  const marriages = temporal.visible;
+  const auc = allAuc.filter(
+    (point) =>
+      point.year >= marriages[0].year &&
+      point.year <= marriages.at(-1)!.year,
+  );
+  const firstYear = marriages[0].year,
+    lastYear = marriages.at(-1)!.year,
+    series = [
       {
         key: "marriages",
         label: "Tasa bruta de nupcialidad",
@@ -5832,7 +6746,10 @@ function UnionRatesChart({
     values = series.flatMap((item) => item.points.map((point) => point.rate)),
     min = Math.min(...values) * 0.85,
     max = Math.max(...values) * 1.1,
-    x = (year: number) => pL + ((year - 1992) * (w - pL - pR)) / (2024 - 1992),
+    x = (year: number) =>
+      pL +
+      ((year - firstYear) * (w - pL - pR)) /
+        Math.max(1, lastYear - firstYear),
     y = (value: number) =>
       h - pB - ((value - min) * (h - pT - pB)) / (max - min);
   return (
@@ -5911,6 +6828,7 @@ function UnionRatesChart({
           </g>
         ))}
       </svg>
+      {temporal.controls}
       <p className="chart-source">
         Se reproduce la tasa bruta publicada en el archivo oficial del INE.
       </p>
@@ -7148,6 +8066,18 @@ function PoliceSeriesChart({
   const [active, setActive] = useState<PoliceMetric[]>(
     POLICE_METRICS.map((item) => item.id),
   );
+  const allYears = institution.series.denuncias.map((point) => point.year);
+  const temporal = useTemporalWindow(
+    allYears,
+    allYears.map(String),
+    [
+      { value: 5, label: "5 años" },
+      { value: "all", label: "Serie completa" },
+    ],
+    5,
+  );
+  const years = temporal.visible;
+  const yearSet = new Set(years);
   const width = 920,
     height = 430,
     left = 78,
@@ -7166,7 +8096,7 @@ function PoliceSeriesChart({
       }))
       .filter(
         (point): point is { year: number; value: number } =>
-          point.value !== null,
+          point.value !== null && yearSet.has(point.year),
       ),
   }));
   const values = series.flatMap((item) =>
@@ -7174,7 +8104,6 @@ function PoliceSeriesChart({
   );
   const min = mode === "variation" ? Math.min(0, ...values) : 0;
   const max = Math.max(1, ...values);
-  const years = institution.series.denuncias.map((point) => point.year);
   const x = (year: number) =>
     left +
     ((year - years[0]) / (years.at(-1)! - years[0])) * (width - left - right);
@@ -7294,6 +8223,7 @@ function PoliceSeriesChart({
           Selecciona al menos una serie para visualizar el gráfico.
         </div>
       )}
+      {temporal.controls}
       <p className="chart-source">
         Fuente: registros administrativos de Carabineros de Chile y Policía de
         Investigaciones. INE, cuadros estadísticos policiales.
@@ -7363,7 +8293,7 @@ function PoliceRegionalMap({
       </div>
       <div className="enusc-map-layout">
         <svg
-          className="enusc-region-map"
+          className="chart chart-motion enusc-region-map"
           viewBox="0 0 820 850"
           role="img"
           aria-label={`${label} por región en ${point.year}`}
@@ -7875,7 +8805,7 @@ function EnuscRegionalMap({
       </div>
       <div className="enusc-map-layout">
         <svg
-          className="enusc-region-map"
+          className="chart chart-motion enusc-region-map"
           viewBox="0 0 820 850"
           role="img"
           aria-label={`Mapa regional de Chile para ${title}`}
@@ -8547,6 +9477,586 @@ function EnuscPage({
   );
 }
 
+function LandingPage({
+  onNavigate,
+}: {
+  onNavigate: (destination: SiteDestination) => void;
+}) {
+  const topics: {
+    number: string;
+    title: string;
+    description: string;
+    destination: SiteDestination;
+  }[] = [
+    {
+      number: "01",
+      title: "Mercado laboral",
+      description:
+        "Ocupación, desocupación, participación e informalidad explicadas mediante series y relatos.",
+      destination: "ene",
+    },
+    {
+      number: "02",
+      title: "Precios",
+      description:
+        "IPC e índices de precios de productor para comprender la evolución de los precios.",
+      destination: "ipc",
+    },
+    {
+      number: "03",
+      title: "Demografía y población",
+      description:
+        "Nacimientos, fecundidad, defunciones, mortalidad, matrimonios y acuerdos de unión civil.",
+      destination: "births",
+    },
+    {
+      number: "04",
+      title: "Condiciones de vida",
+      description:
+        "Victimización, percepción de inseguridad y estadísticas policiales presentadas territorialmente.",
+      destination: "enusc",
+    },
+    {
+      number: "05",
+      title: "Industria y construcción",
+      description:
+        "Producción industrial, energía y permisos de edificación para seguir la actividad económica.",
+      destination: "industry",
+    },
+    {
+      number: "06",
+      title: "Servicios",
+      description:
+        "Comercio, turismo y supermercados a través de indicadores coyunturales y comparaciones.",
+      destination: "commerce",
+    },
+  ];
+
+  return (
+    <main className="landing-page">
+      <SectionHeader current="home" onNavigate={onNavigate} />
+
+      <section className="landing-hero">
+        <div className="wrap landing-hero-grid">
+          <div className="landing-hero-copy">
+            <span className="eyebrow">
+              INE · Estadísticas oficiales de Chile
+            </span>
+            <h1>Los datos cuentan historias sobre el país que habitamos.</h1>
+            <p>
+              Relatos Estadísticos transforma cifras oficiales en recorridos
+              visuales, comparables e interactivos para acercar la información
+              del INE a todas las personas.
+            </p>
+            <div className="landing-actions">
+              <button onClick={() => onNavigate("ene")}>
+                Explorar los relatos
+              </button>
+              <a href="#datos-abiertos">Conocer los datos abiertos ↓</a>
+            </div>
+          </div>
+          <aside
+            className="landing-data-path"
+            aria-label="Recorrido de los datos"
+          >
+            <span>Cómo funciona</span>
+            <ol>
+              <li>
+                <b>Fuente oficial</b>
+                <small>Los datos se originan y publican en ine.gob.cl.</small>
+              </li>
+              <li>
+                <b>Lectura interactiva</b>
+                <small>
+                  Indicadores, gráficos y contexto facilitan su comprensión.
+                </small>
+              </li>
+              <li>
+                <b>Reutilización</b>
+                <small>
+                  Descargas, API, SDMX y código abierto para nuevos análisis.
+                </small>
+              </li>
+            </ol>
+          </aside>
+        </div>
+      </section>
+
+      <section className="landing-intro">
+        <div className="wrap landing-intro-grid">
+          <div className="section-title">
+            <span className="eyebrow">Un sitio para explorar</span>
+            <h2>Estadísticas públicas explicadas paso a paso</h2>
+          </div>
+          <div>
+            <p>
+              Cada relato combina cifras, comparaciones temporales, notas de
+              calidad y contexto. Puedes seleccionar períodos, activar series,
+              recorrer regiones y descargar los gráficos que necesites.
+            </p>
+            <p>
+              Las visualizaciones facilitan la lectura, pero las cifras y
+              documentos publicados por el Instituto Nacional de Estadísticas en{" "}
+              <a href="https://www.ine.gob.cl">www.ine.gob.cl</a> constituyen
+              siempre la fuente oficial.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-topics">
+        <div className="wrap">
+          <div className="section-title">
+            <span className="eyebrow">Temas disponibles</span>
+            <h2>Distintas miradas sobre Chile</h2>
+            <p>Elige un tema y comienza el recorrido.</p>
+          </div>
+          <div className="landing-topic-grid">
+            {topics.map((topic) => (
+              <button
+                key={topic.number}
+                onClick={() => onNavigate(topic.destination)}
+              >
+                <span>{topic.number}</span>
+                <h3>{topic.title}</h3>
+                <p>{topic.description}</p>
+                <b>Ver relato →</b>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="datos-abiertos" className="landing-open-data">
+        <div className="wrap">
+          <div className="landing-open-head">
+            <div>
+              <span className="eyebrow">Datos abiertos y reutilización</span>
+              <h2>De la consulta visual al análisis reproducible</h2>
+            </div>
+            <p>
+              El sitio no solo permite mirar los resultados: también entrega
+              distintas vías para descargarlos, consultarlos automáticamente y
+              transformarlos entre formatos.
+            </p>
+          </div>
+          <div className="landing-open-grid">
+            <article>
+              <span>01</span>
+              <h3>Descargas en distintos formatos</h3>
+              <p>
+                Accede a cuadros y series en Excel, CSV y otros formatos
+                disponibles para cada operación estadística.
+              </p>
+            </article>
+            <article>
+              <span>02</span>
+              <h3>Datos en estándar SDMX</h3>
+              <p>
+                Descarga datos y estructuras SDMX para intercambiar estadísticas
+                con dimensiones, códigos, unidades y atributos de calidad.
+              </p>
+            </article>
+            <article>
+              <span>03</span>
+              <h3>API para consumo automático</h3>
+              <p>
+                El INE pone a disposición endpoints para integrar la información
+                en aplicaciones, scripts y procesos de análisis.
+              </p>
+            </article>
+            <article>
+              <span>04</span>
+              <h3>Transformación con Python</h3>
+              <p>
+                Descarga el código Python que transforma el Excel oficial a
+                SDMX-CSV, conserva los decimales y valida la calidad del
+                resultado.
+              </p>
+            </article>
+          </div>
+          <div className="landing-open-actions">
+            <button onClick={() => onNavigate("ene")}>
+              Ver SDMX y API de la ENE
+            </button>
+            <a href="/sdmx/Guia_tecnica_ENE_SDMX.pdf" download>
+              Descargar guía técnica en PDF ↓
+            </a>
+            <a href="/sdmx/transformar_ene_sdmx.py" download>
+              Descargar transformador Python ↓
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-how">
+        <div className="wrap">
+          <div className="section-title">
+            <span className="eyebrow">Tres formas de comenzar</span>
+            <h2>Explora según lo que necesites</h2>
+          </div>
+          <div className="landing-how-grid">
+            <article>
+              <b>Quiero comprender</b>
+              <p>
+                Recorre las historias y observa qué cambió, dónde y para
+                quiénes.
+              </p>
+            </article>
+            <article>
+              <b>Quiero comparar</b>
+              <p>
+                Selecciona períodos, territorios e indicadores dentro de los
+                gráficos.
+              </p>
+            </article>
+            <article>
+              <b>Quiero reutilizar</b>
+              <p>
+                Descarga los datos o consúmelos mediante API para continuar tu
+                análisis.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <div className="wrap">
+          <div className="brand inverse">
+            <IneLogo inverse />
+            <b>Instituto Nacional de Estadísticas</b>
+          </div>
+          <p>{GLOBAL_FOOTER_TEXT}</p>
+          <a href="https://www.ine.gob.cl">Fuente oficial: ine.gob.cl ↗</a>
+        </div>
+      </footer>
+    </main>
+  );
+}
+
+const ENE_REGIONS = [
+  ["CL", "País"],
+  ["CL-AP", "Región de Arica y Parinacota"],
+  ["CL-TA", "Región de Tarapacá"],
+  ["CL-AN", "Región de Antofagasta"],
+  ["CL-AT", "Región de Atacama"],
+  ["CL-CO", "Región de Coquimbo"],
+  ["CL-VA", "Región de Valparaíso"],
+  ["CL-RM", "Región Metropolitana de Santiago"],
+  ["CL-LI", "Región del Libertador General Bernardo O’Higgins"],
+  ["CL-ML", "Región del Maule"],
+  ["CL-NB", "Región de Ñuble"],
+  ["CL-BI", "Región del Biobío"],
+  ["CL-AR", "Región de La Araucanía"],
+  ["CL-LR", "Región de Los Ríos"],
+  ["CL-LL", "Región de Los Lagos"],
+  ["CL-AI", "Región de Aysén del General Carlos Ibáñez del Campo"],
+  ["CL-MA", "Región de Magallanes y de la Antártica Chilena"],
+] as const;
+
+type DendrogramNode = {
+  id: string;
+  label: string;
+  value: number;
+  parentValue?: number;
+  x: number;
+  y: number;
+  tone: "root" | "labor" | "inactive" | "detail";
+};
+
+function LaborPopulationDendrogram({
+  nationalSeriesBySex,
+  regionalSeries,
+  year,
+  quarter,
+  onPeriod,
+}: {
+  nationalSeriesBySex: Record<string, Point[]>;
+  regionalSeries?: Record<string, Point[]>;
+  year: number;
+  quarter: string;
+  onPeriod: (point: Point) => void;
+}) {
+  const [region, setRegion] = useState("CL");
+  const [sex, setSex] = useState("Total");
+
+  // El archivo oficial desagrega por sexo a nivel país; las hojas regionales
+  // contienen el total de ambos sexos.
+  const series =
+    region === "CL"
+      ? nationalSeriesBySex[sex] || nationalSeriesBySex.Total || []
+      : regionalSeries?.[region] || [];
+  const current =
+    series.find((item) => item.year === year && item.quarter === quarter) ||
+    series.at(-1);
+
+  if (!current) return null;
+  const currentIndex = series.findIndex(
+    (item) => item.year === current.year && item.quarter === current.quarter,
+  );
+  const previousPeriod = currentIndex > 0 ? series[currentIndex - 1] : null;
+  const previousYear =
+    series.find(
+      (item) =>
+        item.year === current.year - 1 && item.quarter === current.quarter,
+    ) || null;
+
+  // La fuente viene ordenada cronológicamente; se invierte para mostrar primero
+  // el trimestre móvil más reciente.
+  const periodOptions = [...series].reverse();
+  const level = (value: number | undefined, fallback = 0) =>
+    Number.isFinite(value) ? Number(value) : fallback;
+  const pet = level(current.pet);
+  const labor = level(current.labor);
+  const employed = level(current.employed);
+  const unemployed = level(current.unemployed);
+  const inactive = level(current.inactive, Math.max(pet - labor, 0));
+  const ceased = level(current.ceased);
+  const firstJob = level(current.firstJob);
+  const initiators = level(current.initiators);
+  const potential = level(current.potential);
+  const habitual = level(current.habitual);
+  const nodes: DendrogramNode[] = [
+    {id:"pet",label:"Población en edad de trabajar",value:pet,x:28,y:268,tone:"root"},
+    {id:"labor",label:"Fuerza de trabajo",value:labor,parentValue:pet,x:282,y:132,tone:"labor"},
+    {id:"inactive",label:"Fuera de la fuerza de trabajo",value:inactive,parentValue:pet,x:282,y:420,tone:"inactive"},
+    {id:"employed",label:"Personas ocupadas",value:employed,parentValue:labor,x:546,y:52,tone:"detail"},
+    {id:"unemployed",label:"Personas desocupadas",value:unemployed,parentValue:labor,x:546,y:212,tone:"detail"},
+    {id:"initiators",label:"Personas iniciadoras",value:initiators,parentValue:inactive,x:546,y:356,tone:"detail"},
+    {id:"potential",label:"Inactivas potencialmente activas",value:potential,parentValue:inactive,x:546,y:452,tone:"detail"},
+    {id:"habitual",label:"Personas inactivas habituales",value:habitual,parentValue:inactive,x:546,y:548,tone:"detail"},
+    {id:"ceased",label:"Personas cesantes",value:ceased,parentValue:unemployed,x:814,y:164,tone:"detail"},
+    {id:"firstJob",label:"Buscan trabajo por primera vez",value:firstJob,parentValue:unemployed,x:814,y:260,tone:"detail"},
+  ];
+  const byId = Object.fromEntries(nodes.map((node) => [node.id, node]));
+  const links = [
+    ["pet","labor"],["pet","inactive"],["labor","employed"],["labor","unemployed"],
+    ["unemployed","ceased"],["unemployed","firstJob"],["inactive","initiators"],
+    ["inactive","potential"],["inactive","habitual"],
+  ] as const;
+  const formatPeople = (value: number) =>
+    (value * 1000).toLocaleString("es-CL", {maximumFractionDigits:0});
+  const regionLabel =
+    ENE_REGIONS.find(([code]) => code === region)?.[1] || "País";
+  const sexLabel =
+    sex === "Hombres" ? "Hombres" : sex === "Mujeres" ? "Mujeres" : "Ambos sexos";
+  const geographicPhrase =
+    region === "CL"
+      ? "para el país"
+      : `para la región de ${regionLabel.replace(/^Región (?:de |del )?/, "")}`;
+
+  // Cada porcentaje representa la participación dentro de la categoría madre.
+  const shareFor = (point: Point | null, nodeId: string) => {
+    if (!point || nodeId === "pet") return null;
+    const pointInactive = level(
+      point.inactive,
+      Math.max(level(point.pet) - level(point.labor), 0),
+    );
+    const ratios: Record<string, [number, number]> = {
+      labor: [level(point.labor), level(point.pet)],
+      inactive: [pointInactive, level(point.pet)],
+      employed: [level(point.employed), level(point.labor)],
+      unemployed: [level(point.unemployed), level(point.labor)],
+      ceased: [level(point.ceased), level(point.unemployed)],
+      firstJob: [level(point.firstJob), level(point.unemployed)],
+      initiators: [level(point.initiators), pointInactive],
+      potential: [level(point.potential), pointInactive],
+      habitual: [level(point.habitual), pointInactive],
+    };
+    const ratio = ratios[nodeId];
+    return ratio && ratio[1] > 0 ? (ratio[0] / ratio[1]) * 100 : null;
+  };
+  const formatPp = (value: number | null) =>
+    value === null
+      ? "s/d"
+      : `${value.toFixed(1).replace(".", ",")} p.p.`;
+
+  return (
+    <section className="labor-tree-section" aria-labelledby="labor-tree-title">
+      <div className="wrap">
+        <div className="labor-tree-head">
+          <div className="section-title">
+            <span className="eyebrow">Estructura de la población</span>
+            <h2 id="labor-tree-title">Cómo se distribuye la población en edad de trabajar</h2>
+            <p>
+              Cada rama descompone la categoría anterior {geographicPhrase},{" "}
+              {sexLabel.toLowerCase()}, en{" "}
+              {formatQuarter(current.quarter).toLowerCase()} de {current.year}.
+            </p>
+          </div>
+          <div className="labor-tree-controls">
+            <label>
+              Región
+              <select
+                value={region}
+                onChange={(event) => {
+                  const nextRegion = event.target.value;
+                  setRegion(nextRegion);
+                  if (nextRegion !== "CL") setSex("Total");
+                  const nextSeries =
+                    nextRegion === "CL"
+                      ? nationalSeriesBySex[sex] || nationalSeriesBySex.Total || []
+                      : regionalSeries?.[nextRegion] || [];
+                  const matching = nextSeries.find(
+                    (item) => item.year === year && item.quarter === quarter,
+                  );
+                  if (!matching && nextSeries.length) onPeriod(nextSeries.at(-1)!);
+                }}
+              >
+                {ENE_REGIONS.map(([code, label]) => (
+                  <option
+                    key={code}
+                    value={code}
+                    disabled={code !== "CL" && !regionalSeries?.[code]?.length}
+                  >
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Sexo
+              <select
+                value={sex}
+                onChange={(event) => {
+                  const nextSex = event.target.value;
+                  setSex(nextSex);
+                  const nextSeries = nationalSeriesBySex[nextSex] || [];
+                  const matching = nextSeries.find(
+                    (item) => item.year === year && item.quarter === quarter,
+                  );
+                  if (!matching && nextSeries.length) onPeriod(nextSeries.at(-1)!);
+                }}
+                disabled={region !== "CL"}
+                aria-describedby={region !== "CL" ? "labor-tree-sex-note" : undefined}
+              >
+                <option value="Total">Ambos sexos</option>
+                <option value="Hombres">Hombres</option>
+                <option value="Mujeres">Mujeres</option>
+              </select>
+            </label>
+            <label>
+              Período
+              <select
+                value={`${current.year}::${current.quarter}`}
+                onChange={(event) => {
+                  const selected = series.find(
+                    (item) =>
+                      `${item.year}::${item.quarter}` === event.target.value,
+                  );
+                  if (selected) onPeriod(selected);
+                }}
+              >
+                {periodOptions.map((item) => (
+                  <option
+                    key={`${item.year}-${item.quarter}`}
+                    value={`${item.year}::${item.quarter}`}
+                  >
+                    {formatQuarter(item.quarter)} {item.year}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+        <div className="labor-tree-card">
+          <div className="labor-tree-period" aria-live="polite">
+            <span>{regionLabel} · {sexLabel}</span>
+            <strong>{formatQuarter(current.quarter)} {current.year}</strong>
+          </div>
+          <svg
+            className="labor-tree"
+            viewBox="0 0 1040 660"
+            role="img"
+            aria-label={`Dendrograma de la población en edad de trabajar de ${regionLabel}, ${sexLabel}, ${formatQuarter(current.quarter)} de ${current.year}`}
+          >
+            <g className="labor-tree-links" aria-hidden="true">
+              {links.map(([fromId,toId]) => {
+                const from=byId[fromId],to=byId[toId];
+                const x1=from.x+194,y1=from.y+38,x2=to.x,y2=to.y+38;
+                return <path key={`${fromId}-${toId}`} d={`M${x1},${y1} C${x1+34},${y1} ${x2-34},${y2} ${x2},${y2}`} />;
+              })}
+            </g>
+            {nodes.map((node) => {
+              const shareValue = shareFor(current, node.id);
+              const previousShare = shareFor(previousPeriod, node.id);
+              const annualShare = shareFor(previousYear, node.id);
+              const previousDelta =
+                shareValue !== null && previousShare !== null
+                  ? shareValue - previousShare
+                  : null;
+              const annualDelta =
+                shareValue !== null && annualShare !== null
+                  ? shareValue - annualShare
+                  : null;
+              const share =
+                shareValue !== null
+                  ? `${shareValue.toFixed(1).replace(".", ",")}% de la categoría anterior`
+                  : "Universo de referencia";
+              const words=node.label.split(" ");
+              const labelLines=words.reduce<string[]>((lines,word)=>{
+                const currentLine=lines.at(-1) || "";
+                if(!currentLine || `${currentLine} ${word}`.length<=28){
+                  if(lines.length) lines[lines.length-1]=`${currentLine} ${word}`.trim();
+                  else lines.push(word);
+                }else lines.push(word);
+                return lines;
+              },[]).slice(0,2);
+              return (
+                <g
+                  key={`${node.id}-${current.year}-${current.quarter}-${region}-${sex}`}
+                  className={`labor-tree-node ${node.tone}`}
+                  transform={`translate(${node.x} ${node.y})`}
+                  role="group"
+                  aria-label={`${node.label}: ${formatPeople(node.value)} personas; ${share}`}
+                >
+                  <rect width="194" height="76" rx="10" />
+                  <text className="node-label" x="14" y="20">
+                    {labelLines.map((line,index)=>(
+                      <tspan key={line} x="14" dy={index===0?0:13}>{line}</tspan>
+                    ))}
+                  </text>
+                  <text className="node-value" x="14" y="54">{formatPeople(node.value)}</text>
+                  {shareValue !== null && (
+                    <>
+                      <text className="node-share" x="72" y="68" textAnchor="end">
+                        {share.split(" ")[0]}
+                      </text>
+                      <text
+                        className={`node-delta ${previousDelta !== null && previousDelta < 0 ? "negative" : ""}`}
+                        x="80"
+                        y="61"
+                      >
+                        Ant.: {formatPp(previousDelta)}
+                      </text>
+                      <text
+                        className={`node-delta ${annualDelta !== null && annualDelta < 0 ? "negative" : ""}`}
+                        x="80"
+                        y="71"
+                      >
+                        Anual: {formatPp(annualDelta)}
+                      </text>
+                    </>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+          <div className="labor-tree-note">
+            <span>Valores expresados en personas.</span>
+            <span>Los porcentajes corresponden a la categoría inmediatamente anterior.</span>
+            <span id="labor-tree-sex-note">
+              La desagregación por sexo está disponible para el total país.
+            </span>
+            <span>Fuente: INE, Encuesta Nacional de Empleo.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   const [remoteEne, setRemoteEne] = useState<EneRemoteData | null>(null);
   const data = useMemo(() => {
@@ -8577,6 +10087,7 @@ export default function Home() {
   const [active, setActive] = useState(["Total", "Mujeres", "Hombres"]);
   const [menu, setMenu] = useState(false);
   const [view, setView] = useState<
+    | "home"
     | "ene"
     | "informality"
     | "ipc"
@@ -8594,7 +10105,7 @@ export default function Home() {
     | "commerce"
     | "tourism"
     | "supermarkets"
-  >("ene");
+  >("home");
   const [pricesOpen, setPricesOpen] = useState(false);
   const [laborOpen, setLaborOpen] = useState(false);
   const [demographyOpen, setDemographyOpen] = useState(false);
@@ -8678,7 +10189,9 @@ export default function Home() {
     window.addEventListener("site:navigate", navigate);
     return () => window.removeEventListener("site:navigate", navigate);
   }, []);
+  useChartStandardHeadings();
   useChartDownloads();
+  useChartEndpointLabels();
   const periods = useMemo(
     () =>
       data?.series.Total.map((p) => ({ year: p.year, quarter: p.quarter })) ||
@@ -8816,6 +10329,12 @@ export default function Home() {
           ? a
           : a.filter((x) => x !== k)
         : [...a, k],
+    );
+  if (view === "home")
+    return (
+      <LandingPage
+        onNavigate={(destination) => void openDestination(destination)}
+      />
     );
   if (view === "informality")
     return (
@@ -9095,10 +10614,7 @@ export default function Home() {
       <header>
         <div className="topbar">
           <div className="brand">
-            <IneLogo />
-            <b>
-              INE <em>|</em> Relatos Estadísticos
-            </b>
+            <RelatosHeaderLogo />
           </div>
           <nav className="utility">
             <a href="https://www.ine.gob.cl/institucional/">Acerca del INE</a>
@@ -9108,6 +10624,7 @@ export default function Home() {
           </nav>
         </div>
         <nav className={`topics ${menu ? "open" : ""}`}>
+          <HomeNavLink />
           <div
             className={`topic-dropdown ${laborOpen ? "open" : ""}`}
             onMouseLeave={() => setLaborOpen(false)}
@@ -9637,6 +11154,16 @@ export default function Home() {
           </article>
         </div>
       </section>
+      <LaborPopulationDendrogram
+        nationalSeriesBySex={data.series}
+        regionalSeries={remoteEne?.regionalSeries}
+        year={year}
+        quarter={quarter}
+        onPeriod={(selected) => {
+          setYear(selected.year);
+          setQuarter(selected.quarter);
+        }}
+      />
       <section className="topic-analysis">
         <div className="wrap">
           <div className="section-title">
@@ -10064,7 +11591,10 @@ export default function Home() {
           <div className="section-title">
             <span className="eyebrow">Centro de recursos</span>
             <h2>Datos y documentación</h2>
-            <p>Accede a los archivos oficiales publicados por el INE.</p>
+            <p>
+              Accede a los archivos oficiales y reutiliza los indicadores de la
+              ENE mediante estándares abiertos.
+            </p>
           </div>
           <div className="resource-grid">
             {[
@@ -10081,6 +11611,122 @@ export default function Home() {
               </a>
             ))}
           </div>
+          {false && <section className="ene-sdmx" aria-labelledby="ene-sdmx-title">
+            <div className="ene-sdmx-head">
+              <div>
+                <span className="eyebrow">Datos abiertos · SDMX y API</span>
+                <h3 id="ene-sdmx-title">
+                  Una misma fuente, distintas formas de uso
+                </h3>
+                <p>
+                  Descarga el conjunto completo en SDMX-CSV 2.0, consulta su
+                  estructura estadística o intégralo directamente en tus
+                  aplicaciones.
+                </p>
+              </div>
+              <span className="api-badge">Piloto ENE · versión 1.0</span>
+            </div>
+
+            <div className="ene-sdmx-options">
+              <article>
+                <span>01</span>
+                <h4>Descargar datos SDMX</h4>
+                <p>
+                  48.165 observaciones, 247 series y 195 períodos, desde marzo
+                  de 2010 hasta mayo de 2026.
+                </p>
+                <a
+                  href="/sdmx/ENE_IND_PRINCIPALES_completo_SDMX-CSV_2.0.csv"
+                  download
+                >
+                  Descargar SDMX-CSV 2.0 ↓
+                </a>
+              </article>
+              <article>
+                <span>02</span>
+                <h4>Explorar la estructura</h4>
+                <p>
+                  Conceptos, listas de códigos, DSD y Dataflow con agencia
+                  oficial INE.GOB.CL.
+                </p>
+                <a href="/sdmx/00_Estructuras_ENE_completo.xml" download>
+                  Descargar estructuras SDMX-ML 3.0 ↓
+                </a>
+              </article>
+              <article>
+                <span>03</span>
+                <h4>Consumir mediante API</h4>
+                <p>
+                  Endpoint estable para sistemas, scripts y herramientas de
+                  análisis, con respuesta en SDMX-CSV.
+                </p>
+                <a
+                  href="/api/sdmx/data/INE.GOB.CL,DF_ENE_IND_PRINCIPALES,1.0/all"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Probar endpoint ↗
+                </a>
+              </article>
+            </div>
+
+            <div className="ene-api-example">
+              <div>
+                <span>Ejemplo · Conjunto completo</span>
+                <code>
+                  GET /api/sdmx/data/INE.GOB.CL,DF_ENE_IND_PRINCIPALES,1.0/all
+                </code>
+              </div>
+              <div className="ene-api-query-example">
+                <span>
+                  Ejemplo · Región Metropolitana · últimos 13 trimestres móviles
+                </span>
+                <code>
+                  GET
+                  /api/sdmx/data/INE.GOB.CL,DF_ENE_IND_PRINCIPALES,1.0/all?ref_area=CL-RM&amp;last_n_periods=13
+                </code>
+                <a
+                  href="/api/sdmx/data/INE.GOB.CL,DF_ENE_IND_PRINCIPALES,1.0/all?ref_area=CL-RM&last_n_periods=13"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Ejecutar consulta y descargar SDMX-CSV ↗
+                </a>
+              </div>
+              <div className="ene-api-meta" aria-label="Metadatos del conjunto">
+                <span>
+                  <b>FREQ</b> Trimestral móvil
+                </span>
+                <span>
+                  <b>Ámbito</b> Nacional y regional
+                </span>
+                <span>
+                  <b>Sexo</b> Total, mujeres y hombres
+                </span>
+                <span>
+                  <b>Calidad</b> F, A y B
+                </span>
+              </div>
+              <p>
+                Dimensiones: <b>FREQ</b>, <b>REF_AREA</b>, <b>SEX</b>,{" "}
+                <b>INDICATOR</b> y <b>TIME_PERIOD</b>. El período corresponde al
+                mes final del trimestre móvil y los valores conservan todos los
+                decimales del archivo Excel.
+              </p>
+              <div className="ene-sdmx-secondary">
+                <a href="/sdmx/Guia_tecnica_ENE_SDMX.pdf" download>
+                  Guía técnica en PDF ↓
+                </a>
+                <a href="/sdmx/transformar_ene_sdmx.py" download>
+                  Transformador Excel → SDMX-CSV ↓
+                </a>
+                <a href="/sdmx/informe_validacion_completo.json" download>
+                  Informe de validación ↓
+                </a>
+              </div>
+            </div>
+          </section>}
+          <LaborSdmxBox context="ene" />
         </div>
       </section>
       <footer>

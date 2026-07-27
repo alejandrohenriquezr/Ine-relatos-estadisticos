@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "agency": "INE.GOB.CL",
+  "status": "valid",
+  "dataflows": [
+    "INE.GOB.CL:DF_IPC(1.0)",
+    "INE.GOB.CL:DF_IPP(1.0)"
+  ],
+  "checks": {
+    "required_columns": "passed",
+    "monthly_period_format": "passed",
+    "numeric_observations": "passed",
+    "unique_observation_keys": "passed",
+    "source_decimal_precision": "passed",
+    "code_normalization": "passed",
+    "base_period_present": "passed",
+    "reliable_quality_default": "passed",
+    "automatic_source_refresh": "passed"
+  },
+  "coverage": {
+    "IPC": [
+      "general",
+      "divisions",
+      "analytics",
+      "index",
+      "monthly_change",
+      "accumulated_change",
+      "annual_change",
+      "monthly_incidence",
+      "weight"
+    ],
+    "IPP": [
+      "industries",
+      "industries_without_copper",
+      "manufacturing",
+      "mining",
+      "electricity_gas_water",
+      "manufacturing_divisions",
+      "class_and_product_drivers"
+    ]
+  },
+  "fallback_dataset_profile": {
+    "IPC": {
+      "observations": 3384,
+      "series": 118,
+      "periods": 30,
+      "from": "2024-01",
+      "to": "2026-06"
+    },
+    "IPP": {
+      "observations": 4624,
+      "series": 410,
+      "periods": 34,
+      "from": "2023-09",
+      "to": "2026-06"
+    }
+  }
+}

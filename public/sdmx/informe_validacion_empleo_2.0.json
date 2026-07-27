@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-07-26",
+  "dataflow": "INE.GOB.CL:DF_ENE_MERCADO_LABORAL(2.0)",
+  "structure": "INE.GOB.CL:DSD_ENE_MERCADO_LABORAL(2.0)",
+  "coverage": {
+    "datasets": ["ENE", "INFORMALITY"],
+    "areas": [
+      "indicadores principales",
+      "ajuste estacional",
+      "rama de actividad económica",
+      "categoría en la ocupación",
+      "grupo ocupacional",
+      "ocupación presente y ausente"
+    ]
+  },
+  "source_refresh": {
+    "strategy": "cache-first",
+    "description": "La API entrega la caché pública y comprueba ETag, fecha y tamaño de los Excel oficiales. Ante cambios, descarga, valida y agrega los períodos nuevos antes de sustituir la caché.",
+    "frequency": "en cada consulta, con respuesta no-store del orquestador"
+  },
+  "validation_rules": [
+    {"id": "V01", "rule": "OBS_VALUE debe ser numérico y finito", "status": "implemented"},
+    {"id": "V02", "rule": "TIME_PERIOD debe corresponder al mes final del trimestre móvil", "status": "implemented"},
+    {"id": "V03", "rule": "cada observación debe identificar DATASET, BREAKDOWN, CATEGORY e INDICATOR", "status": "implemented"},
+    {"id": "V04", "rule": "los valores conservan los decimales de los Excel, sin redondeo", "status": "implemented"},
+    {"id": "V05", "rule": "las notas A y B se propagan como EST_QUALITY; sin nota se codifica F", "status": "implemented"},
+    {"id": "V06", "rule": "las filas se ordenan por período, conjunto e indicador", "status": "implemented"},
+    {"id": "V07", "rule": "la ruta 1.0 continúa disponible y filtra indicadores principales ENE", "status": "implemented"}
+  ],
+  "automated_tests": [
+    "cobertura de ambos conjuntos",
+    "integridad del encabezado SDMX-CSV",
+    "filtros API",
+    "selección de últimos N períodos",
+    "compatibilidad con observaciones de calidad"
+  ]
+}
