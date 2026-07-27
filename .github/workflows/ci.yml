@@ -1,0 +1,76 @@
+name: Calidad del sitio
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, pruebas y construcción
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # Descarga exactamente la revisión que disparó el flujo.
+      - name: Obtener código
+        uses: actions/checkout@v4
+
+      # Usa la versión mínima de Node declarada por el proyecto y habilita caché.
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+
+      # npm ci reproduce las versiones fijadas en package-lock.json.
+      - name: Instalar dependencias
+        run: npm ci
+
+      # El análisis estático queda temporalmente informativo mientras se
+      # resuelven las observaciones heredadas documentadas en TECHNICAL_DEBT.md.
+      - name: Auditar lint
+        continue-on-error: true
+        run: npm run lint
+
+      # Las pruebas incluyen construcción, artefacto y regresiones principales.
+      - name: Ejecutar pruebas
+        run: npm test
+
+      # Conserva el resultado compilado para diagnóstico, sin publicarlo.
+      - name: Guardar artefacto de construcción
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sitio-compilado
+          path: dist/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  secret-scan:
+    name: Revisión de secretos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      # Se revisa el historial disponible para detectar credenciales accidentales.
+      - name: Obtener código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Buscar secretos
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
