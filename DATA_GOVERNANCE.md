@@ -9,7 +9,7 @@
 | Equipo metodológico | Validar cálculos, notas e interpretación |
 | Equipo editorial | Validar relato y lenguaje claro |
 | Equipo técnico | Mantener transformadores, pruebas y despliegue |
-| Gobierno de Datos | Definir linaje, metadatos, controles y auditoría |
+| DMIE | Definir metadatos |
 | TI y seguridad | Homologar plataforma, acceso y continuidad |
 
 ## Controles mínimos por producto
