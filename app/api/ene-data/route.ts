@@ -42,8 +42,7 @@ async function sha256(buffer:ArrayBuffer){
 function assertXlsx(key:SourceKey,buffer:ArrayBuffer,contentType:string|null){
   if(buffer.byteLength<MIN_XLSX_BYTES)throw new Error(`${key}: archivo demasiado pequeño (${buffer.byteLength} bytes)`);
   const magic=new Uint8Array(buffer,0,Math.min(4,buffer.byteLength));
-  const isZip=magic[0]===0x50&&magic[1]===0x4b;
-  if(!isZip)throw new Error(`${key}: la respuesta no es un archivo XLSX válido`);
+  if(!(magic[0]===0x50&&magic[1]===0x4b))throw new Error(`${key}: la respuesta no es un archivo XLSX válido`);
   if(contentType?.includes("text/html"))throw new Error(`${key}: el servidor devolvió HTML en lugar del Excel`);
 }
 
@@ -85,41 +84,40 @@ async function downloadWithRetry(key:SourceKey){
   throw lastError instanceof Error?lastError:new Error(`${key}: descarga fallida`);
 }
 
-function normalizeQuarter(value:string){
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim();
-}
-
-const periodRank:Record<string,number>={
-  "ene - mar":1,"feb - abr":2,"mar - may":3,"abr - jun":4,
-  "may - jul":5,"jun - ago":6,"jul - sep":7,"ago - oct":8,
-  "sep - nov":9,"oct - dic":10,"nov - ene":11,"dic - feb":12,
-};
-
-function periodValue(point:SeriesPoint){
-  const rank=periodRank[normalizeQuarter(point.quarter)];
-  if(!Number.isInteger(point.year)||!rank)throw new Error(`Período ENE no reconocido: ${point.year} · ${point.quarter}`);
-  // Los trimestres móviles Nov-Ene y Dic-Feb se identifican por el año del mes final en el Excel.
-  return point.year*12+rank;
+function periodKey(point:SeriesPoint){
+  if(!Number.isInteger(point.year)||typeof point.quarter!=="string"||!point.quarter.trim()){
+    throw new Error("La serie contiene un período ENE inválido");
+  }
+  return `${point.year}|${point.quarter.trim()}`;
 }
 
 function validatePayload(payload:EnePayload,cachedPayload:EnePayload|null){
   const points=payload.series?.Total;
   if(!Array.isArray(points)||points.length<12)throw new Error("La serie nacional total no contiene suficientes períodos");
-  let previous=-Infinity;
+
+  const seen=new Set<string>();
   for(const point of points){
-    const current=periodValue(point);
-    if(current<=previous)throw new Error(`La serie ENE no está ordenada o contiene períodos duplicados en ${point.year} · ${point.quarter}`);
-    previous=current;
+    const key=periodKey(point);
+    if(seen.has(key))throw new Error(`La serie ENE contiene un período duplicado: ${point.year} · ${point.quarter}`);
+    seen.add(key);
     if(typeof point.unemploymentRate!=="number"||!Number.isFinite(point.unemploymentRate)){
       throw new Error(`Tasa de desocupación inválida en ${point.year} · ${point.quarter}`);
     }
   }
+
   const latest=points.at(-1)!;
   const cachedLatest=cachedPayload?.series?.Total?.at(-1);
-  if(cachedLatest&&periodValue(latest)<periodValue(cachedLatest)){
-    throw new Error(`La fuente retrocede desde ${cachedLatest.year} · ${cachedLatest.quarter} a ${latest.year} · ${latest.quarter}`);
+  if(cachedLatest){
+    const cachedIndex=points.findIndex(point=>periodKey(point)===periodKey(cachedLatest));
+    if(cachedIndex<0){
+      throw new Error(`La nueva fuente eliminó el último período previamente validado: ${cachedLatest.year} · ${cachedLatest.quarter}`);
+    }
+    if(cachedIndex!==points.length-1&&cachedIndex>=points.length-1){
+      throw new Error(`La nueva fuente retrocede respecto de ${cachedLatest.year} · ${cachedLatest.quarter}`);
+    }
   }
-  return {year:latest.year,quarter:latest.quarter,periodValue:periodValue(latest),observations:points.length};
+
+  return {year:latest.year,quarter:latest.quarter,observations:points.length};
 }
 
 function publicSources(downloads:DownloadedSource[]){
@@ -138,7 +136,6 @@ export async function GET(){
   const now=new Date().toISOString();
 
   try{
-    // Se descarga el contenido real: los encabezados HTTP quedan solo como trazabilidad.
     const downloads=await Promise.all((Object.keys(sources) as SourceKey[]).map(downloadWithRetry));
     const metadata=publicSources(downloads);
     const signature=JSON.stringify({
@@ -148,11 +145,11 @@ export async function GET(){
 
     if(cached?.source_etag===signature){
       await db.prepare("UPDATE economic_source_cache SET checked_at = ? WHERE kind = ?").bind(now,"ene").run();
-      const latest=validatePayload(cachedPayload??{},null);
+      const validation=validatePayload(cachedPayload??{},null);
       return NextResponse.json({
         ...cachedPayload,
         sources:metadata,
-        cache:{status:"shared",checkedAt:now,updatedAt:cached.updated_at,validation:latest},
+        cache:{status:"shared",checkedAt:now,updatedAt:cached.updated_at,validation},
       },{headers:{"Cache-Control":"no-store"}});
     }
 
@@ -165,7 +162,6 @@ export async function GET(){
     }) as EnePayload;
     const validation=validatePayload(payload,cachedPayload);
 
-    // La fila se reemplaza solo después de descargar, verificar, transformar y validar todo.
     await db.prepare("INSERT INTO economic_source_cache (kind,source_url,source_last_modified,source_etag,source_size,payload_json,checked_at,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(kind) DO UPDATE SET source_url=excluded.source_url,source_last_modified=excluded.source_last_modified,source_etag=excluded.source_etag,source_size=excluded.source_size,payload_json=excluded.payload_json,checked_at=excluded.checked_at,updated_at=excluded.updated_at")
       .bind(
         "ene",
