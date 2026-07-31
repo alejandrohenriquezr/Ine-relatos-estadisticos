@@ -107,14 +107,8 @@ function validatePayload(payload:EnePayload,cachedPayload:EnePayload|null){
 
   const latest=points.at(-1)!;
   const cachedLatest=cachedPayload?.series?.Total?.at(-1);
-  if(cachedLatest){
-    const cachedIndex=points.findIndex(point=>periodKey(point)===periodKey(cachedLatest));
-    if(cachedIndex<0){
-      throw new Error(`La nueva fuente eliminó el último período previamente validado: ${cachedLatest.year} · ${cachedLatest.quarter}`);
-    }
-    if(cachedIndex!==points.length-1&&cachedIndex>=points.length-1){
-      throw new Error(`La nueva fuente retrocede respecto de ${cachedLatest.year} · ${cachedLatest.quarter}`);
-    }
+  if(cachedLatest&&!points.some(point=>periodKey(point)===periodKey(cachedLatest))){
+    throw new Error(`La nueva fuente eliminó el último período previamente validado: ${cachedLatest.year} · ${cachedLatest.quarter}`);
   }
 
   return {year:latest.year,quarter:latest.quarter,observations:points.length};
