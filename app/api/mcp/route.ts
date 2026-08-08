@@ -7,7 +7,8 @@ import {
   timeSeries,
 } from "../../../lib/mcp-statistics";
 
-const PROTOCOL_VERSION = "2025-11-25";
+const DEFAULT_PROTOCOL_VERSION = "2025-11-25";
+const SUPPORTED_PROTOCOL_VERSIONS = new Set(["2025-03-26", "2025-06-18", "2025-11-25"]);
 
 const schemas = {
   dataset: {type:"string", enum:["ENE","INFORMALITY","IPC","IPP"]},
@@ -57,7 +58,14 @@ type RpcRequest = {jsonrpc?:string;id?:string|number|null;method?:string;params?
 
 const rpc = (id: RpcRequest["id"], result: unknown) => ({jsonrpc:"2.0",id:id ?? null,result});
 const error = (id: RpcRequest["id"], code:number, message:string, data?:unknown) => ({jsonrpc:"2.0",id:id ?? null,error:{code,message,...(data===undefined?{}:{data})}});
-const toolResult = (value: unknown) => ({content:[{type:"text",text:JSON.stringify(value,null,2)}],structuredContent:value,isError:false});
+
+// MCP exige que structuredContent sea un objeto. El valor completo se conserva
+// también como texto JSON para clientes que sólo consumen content.
+const toolResult = (value: unknown) => ({
+  content:[{type:"text",text:JSON.stringify(value,null,2)}],
+  structuredContent:{result:value},
+  isError:false,
+});
 
 function callTool(name:string, args:Record<string,unknown>) {
   switch(name) {
@@ -71,9 +79,8 @@ function callTool(name:string, args:Record<string,unknown>) {
 }
 
 /**
- * Endpoint MCP Streamable HTTP, stateless y de solo lectura.
- * Implementa las operaciones básicas requeridas por clientes MCP remotos:
- * initialize, ping, tools/list y tools/call.
+ * Endpoint MCP por HTTP, sin estado y de solo lectura.
+ * Implementa initialize, ping, tools/list y tools/call.
  */
 export async function POST(request:NextRequest) {
   let body:RpcRequest;
@@ -87,13 +94,16 @@ export async function POST(request:NextRequest) {
 
   try {
     switch(body.method) {
-      case "initialize":
+      case "initialize": {
+        const requested = String(body.params?.protocolVersion ?? "");
+        const protocolVersion = SUPPORTED_PROTOCOL_VERSIONS.has(requested) ? requested : DEFAULT_PROTOCOL_VERSION;
         return NextResponse.json(rpc(body.id,{
-          protocolVersion:PROTOCOL_VERSION,
+          protocolVersion,
           capabilities:{tools:{listChanged:false}},
           serverInfo:{name:"ine-statistical-mcp",version:"1.0.0",title:"INE Chile · Statistical MCP"},
           instructions:"Servidor de solo lectura. Las cifras provienen de las mismas instantáneas validadas que alimentan la capa SDMX del sitio INE | Relatos Estadísticos. Use search_statistics o get_metadata para descubrir códigos antes de filtrar. No inferir ni reemplazar valores ausentes.",
         }),{headers:{"Cache-Control":"no-store"}});
+      }
       case "ping": return NextResponse.json(rpc(body.id,{}));
       case "tools/list": return NextResponse.json(rpc(body.id,{tools:TOOLS}));
       case "tools/call": {
@@ -113,9 +123,10 @@ export async function GET() {
   return NextResponse.json({
     name:"INE Chile · Statistical MCP",
     version:"1.0.0",
-    transport:"Streamable HTTP",
+    transport:"HTTP",
     endpoint:"/api/mcp",
     read_only:true,
+    protocol_versions:[...SUPPORTED_PROTOCOL_VERSIONS],
     datasets:listDatasets(),
     tools:TOOLS.map(tool=>tool.name),
   },{headers:{"Cache-Control":"public, max-age=300"}});
