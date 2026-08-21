@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import PublicationsPanel, {
+  prefetchPublications,
+} from "./PublicationsPanel";
+import TopicTreeMenu from "./TopicTreeMenu";
+import OpenDataResources from "./OpenDataResources";
 
 export type SiteDestination =
   | "home"
@@ -22,82 +27,140 @@ export type SiteDestination =
   | "tourism"
   | "supermarkets";
 
-type MenuId =
-  | "labor"
-  | "prices"
-  | "demography"
-  | "living"
-  | "industry"
-  | "services";
+type ResourceTab =
+  | "analysis"
+  | "publications"
+  | "documentation"
+  | "databases"
+  | "resources";
 
-type Menu = {
-  id: MenuId;
-  label: string;
-  destinations: SiteDestination[];
-  items: { label: string; destination: SiteDestination }[];
+const resourceTabs: { id: ResourceTab; label: string; title: string }[] = [
+  { id: "analysis", label: "Análisis de resultados", title: "Análisis de resultados" },
+  { id: "publications", label: "Publicaciones", title: "Publicaciones" },
+  { id: "documentation", label: "Documentación", title: "Documentación" },
+  { id: "databases", label: "Bases de datos", title: "Bases de datos" },
+  { id: "resources", label: "Centro de recursos", title: "Centro de recursos" },
+];
+
+const destinationTitles: Record<Exclude<SiteDestination, "home">, string> = {
+  ene: "Ocupación y Desocupación",
+  informality: "Informalidad Laboral",
+  ipc: "Índice de Precios al Consumidor",
+  ipp: "Índice de Precios al Productor",
+  births: "Nacimientos",
+  fertility: "Fecundidad",
+  deaths: "Defunciones",
+  mortality: "Mortalidad",
+  unions: "Matrimonios y Acuerdos de Unión Civil",
+  enusc: "Encuesta Nacional Urbana de Seguridad Ciudadana",
+  police: "Estadísticas Policiales",
+  permits: "Permisos de Edificación",
+  energy: "Producción de Electricidad, Gas y Agua",
+  industry: "Índice de Producción Industrial",
+  commerce: "Comercio",
+  tourism: "Turismo",
+  supermarkets: "Supermercados",
 };
 
-const menus: Menu[] = [
-  {
-    id: "labor",
-    label: "Mercado laboral",
-    destinations: ["ene", "informality"],
-    items: [
-      { label: "Ocupación y desocupación", destination: "ene" },
-      { label: "Informalidad laboral", destination: "informality" },
-    ],
-  },
-  {
-    id: "prices",
-    label: "Precios",
-    destinations: ["ipc", "ipp"],
-    items: [
-      { label: "Índice de Precios al Consumidor", destination: "ipc" },
-      { label: "Índice de Precios al Productor", destination: "ipp" },
-    ],
-  },
-  {
-    id: "demography",
-    label: "Demografía y población",
-    destinations: ["births", "fertility", "deaths", "mortality", "unions"],
-    items: [
-      { label: "Nacimientos", destination: "births" },
-      { label: "Fecundidad", destination: "fertility" },
-      { label: "Defunciones", destination: "deaths" },
-      { label: "Mortalidad", destination: "mortality" },
-      { label: "Matrimonios y AUC", destination: "unions" },
-    ],
-  },
-  {
-    id: "living",
-    label: "Condiciones de vida",
-    destinations: ["enusc", "police"],
-    items: [
-      { label: "ENUSC", destination: "enusc" },
-      { label: "Policías", destination: "police" },
-    ],
-  },
-  {
-    id: "industry",
-    label: "Industria, Energía y Construcción",
-    destinations: ["permits", "energy", "industry"],
-    items: [
-      { label: "Permisos de Edificación", destination: "permits" },
-      { label: "Energía", destination: "energy" },
-      { label: "Industria", destination: "industry" },
-    ],
-  },
-  {
-    id: "services",
-    label: "Servicios",
-    destinations: ["commerce", "tourism", "supermarkets"],
-    items: [
-      { label: "Comercio", destination: "commerce" },
-      { label: "Turismo", destination: "tourism" },
-      { label: "Supermercados", destination: "supermarkets" },
-    ],
-  },
-];
+const destinationOperationCodes: Record<
+  Exclude<SiteDestination, "home">,
+  string
+> = {
+  ene: "ocupacion_y_desocupacion",
+  informality: "informalidad_laboral",
+  ipc: "indice_de_precios_al_consumidor",
+  ipp: "indice_de_precios_al_productor",
+  births: "nacimientos",
+  fertility: "fecundidad",
+  deaths: "defunciones",
+  mortality: "mortalidad",
+  unions: "matrimonios_y_acuerdos_de_union_civil",
+  enusc: "enusc",
+  police: "estadisticas_policiales",
+  permits: "permisos_de_edificacion",
+  energy: "produccion_de_electricidad_gas_y_agua",
+  industry: "indice_de_produccion_industrial",
+  commerce: "comercio",
+  tourism: "turismo",
+  supermarkets: "supermercados",
+};
+
+export function ResourceTabs({
+  current,
+}: {
+  current: Exclude<SiteDestination, "home">;
+}) {
+  const [activeTab, setActiveTab] = useState<ResourceTab>("analysis");
+  const active = resourceTabs.find((tab) => tab.id === activeTab)!;
+  const operationCode = destinationOperationCodes[current];
+
+  useEffect(() => {
+    prefetchPublications(operationCode);
+    prefetchPublications(operationCode, "documentacion");
+    prefetchPublications(operationCode, "bases_de_datos");
+  }, [operationCode]);
+
+  return (
+    <section
+      className="resource-tabs"
+      data-active={activeTab}
+      aria-label={`Secciones de ${destinationTitles[current]}`}
+    >
+      <div className="resource-tabs-scroll">
+        <div className="resource-tabs-list wrap" role="tablist">
+          {resourceTabs.map((tab) => (
+            <button
+              key={tab.id}
+              id={`tab-${current}-${tab.id}`}
+              className={activeTab === tab.id ? "active" : ""}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`panel-${current}-${tab.id}`}
+              tabIndex={activeTab === tab.id ? 0 : -1}
+              onClick={() => {
+                setActiveTab(tab.id);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {activeTab !== "analysis" && (
+        <div
+          className="resource-tab-panel"
+          id={`panel-${current}-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${current}-${activeTab}`}
+        >
+          <section className="hero wrap">
+            <div>
+              <span className="eyebrow">{active.label}</span>
+              <h1>{active.title} de {destinationTitles[current]}</h1>
+            </div>
+          </section>
+          {["publications", "documentation", "databases"].includes(activeTab) && (
+            <section className="publications-content wrap">
+              <PublicationsPanel
+                operationCode={operationCode}
+                familyCode={
+                  activeTab === "documentation"
+                    ? "documentacion"
+                    : activeTab === "databases"
+                      ? "bases_de_datos"
+                      : "publicaciones"
+                }
+              />
+            </section>
+          )}
+          {activeTab === "resources" && <OpenDataResources current={current} />}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export function IneLogo({ inverse = false }: { inverse?: boolean }) {
   // Se reutiliza el mismo activo institucional presente en Mercado Laboral.
@@ -141,74 +204,10 @@ export default function SectionHeader({
   current: SiteDestination;
   onNavigate: (destination: SiteDestination) => void;
 }) {
-  const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
-
-  // Cierra el menú antes de cambiar de relato para evitar paneles persistentes.
-  const navigate = (destination: SiteDestination) => {
-    setOpenMenu(null);
-    onNavigate(destination);
-  };
-
   return (
-    <header>
-      <div className="topbar">
-        <div className="brand">
-          <IneLogo />
-          <a
-            className="relatos-home-link"
-            href="/"
-            aria-label="Ir al inicio de Relatos Estadísticos"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/branding/logo-relatos-estadisticos-home.png"
-              alt="Relatos Estadísticos"
-            />
-          </a>
-        </div>
-        <nav className="utility">
-          <a href="https://www.ine.gob.cl/institucional/">Acerca del INE</a>
-        </nav>
-      </div>
-      <nav className="topics econ-topics" aria-label="Temas estadísticos">
-        <HomeNavLink active={current === "home"} />
-        {menus.map((menu) => {
-          const isOpen = openMenu === menu.id;
-          const isActive = menu.destinations.includes(current);
-          return (
-            <div
-              key={menu.id}
-              className={`topic-dropdown ${isOpen ? "open" : ""}`}
-              onMouseEnter={() => setOpenMenu(menu.id)}
-              onMouseLeave={() => setOpenMenu(null)}
-              onFocus={() => setOpenMenu(menu.id)}
-            >
-              <button
-                className={isActive ? "active" : ""}
-                aria-expanded={isOpen}
-                aria-haspopup="menu"
-                onClick={() => setOpenMenu(isOpen ? null : menu.id)}
-              >
-                {menu.label}
-              </button>
-              <div className="topic-submenu" role="menu">
-                {menu.items.map((item) => (
-                  <button
-                    key={item.destination}
-                    role="menuitem"
-                    aria-current={
-                      current === item.destination ? "page" : undefined
-                    }
-                    onClick={() => navigate(item.destination)}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </nav>
-    </header>
+    <>
+    <header className="ine-institutional-header"><nav className="ine-main-nav" aria-label="Navegación institucional"><a className="ine-mark" href="https://www.ine.gob.cl" aria-label="Instituto Nacional de Estadísticas"><img src="/ine-logo.jpg" alt="INE" /></a><a href="/">› Estadísticas por tema</a><span className="ine-navdrop">› Herramientas <i>▼</i><span className="ine-mega"><a href="https://www.ine.gob.cl/herramientas">Agenda estadística ↗</a><a href="https://www.ine.gob.cl/herramientas">Sistema de Información de Mercado Laboral - SIMEL ↗</a><a href="https://bancodatosene.ine.cl">Banco de datos ENE ↗</a><a href="https://calculadoraipc.ine.cl">Calculadora IPC ↗</a><a href="https://redatam-ine.ine.cl">Redatam ↗</a><a href="https://www.ine.gob.cl/herramientas">Portal de Mapas ↗</a><a href="https://stat.ine.cl">INE.Stat ↗</a></span></span><span className="ine-navdrop">› Acerca del INE <i>▼</i><span className="ine-dropdown"><a href="https://www.ine.gob.cl/institucional/">Nuestra institución</a></span></span><span className="ine-navdrop">› Regiones <i>▼</i><span className="ine-dropdown"><a href="https://regiones.ine.gob.cl/">Direcciones regionales</a></span></span><span className="ine-navdrop">› Acceso Informantes <i>▼</i><span className="ine-dropdown"><a href="https://www.ine.gob.cl/acceso-informantes">Información para personas y empresas</a></span></span><span className="ine-search">⌕</span><span className="ine-language">EN</span></nav><nav className="topics topic-explorer" aria-label="Navegación estadística"><HomeNavLink active={current === "home"} /><TopicTreeMenu onNavigate={onNavigate} /></nav></header>
+    {current !== "home" && <ResourceTabs current={current} />}
+    </>
   );
 }

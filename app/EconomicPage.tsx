@@ -652,11 +652,15 @@ export default function EconomicPage({
       kind === "commerce" ? peekDataset("commerce") : fallbackData[kind],
     ),
     [error, setError] = useState(""),
+    [sharedDataReady, setSharedDataReady] = useState(() =>
+      Boolean(kind === "commerce" ? peekDataset("commerce") : fallbackData[kind]),
+    ),
     [metric, setMetric] = useState(kind === "permits" ? "value" : "index");
   useEffect(() => {
     let alive = true;
     setData(kind === "commerce" ? peekDataset("commerce") : fallbackData[kind]);
     setError("");
+    setSharedDataReady(Boolean(kind === "commerce" ? peekDataset("commerce") : fallbackData[kind]));
     setMetric(kind === "permits" ? "value" : "index");
     const initialRequest =
       kind === "commerce"
@@ -672,6 +676,8 @@ export default function EconomicPage({
       .then(async (initial) => {
         if (!alive) return;
         setData(initial);
+        setSharedDataReady(true);
+        if (kind !== "commerce") void fetch(`/api/economic-data?kind=${kind}&refresh=1`, { cache: "no-store" });
         if (kind === "commerce") {
           const refreshed = await refreshDataset<any>("commerce");
           if (alive && refreshed) setData(refreshed);
@@ -696,6 +702,7 @@ export default function EconomicPage({
     [data, kind],
   );
   const latest = series.at(-1);
+  if (!sharedDataReady) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando la publicación vigente…</p></main>;
   if (kind === "commerce")
     return data ? (
       <CommercePage data={data} onNavigate={onNavigate} />

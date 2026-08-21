@@ -383,13 +383,15 @@ export default function TourismPage({
   onNavigate: (value: string) => void;
 }) {
   const [data, setData] = useState<any>(() => peekDataset("tourism") ?? null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [sharedDataReady, setSharedDataReady] = useState(() => Boolean(peekDataset("tourism")));
   useEffect(() => {
     let active = true;
     primeDataset<any>("tourism")
       .then(async (initial) => {
         if (!active) return;
         setData(initial);
+        setSharedDataReady(true);
         setError("");
         const refreshed = await refreshDataset<any>("tourism");
         if (active && refreshed) setData(refreshed);
@@ -422,6 +424,7 @@ export default function TourismPage({
         : [],
     [data, tables],
   );
+  if (!sharedDataReady) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando la publicación vigente…</p></main>;
   return (
     <main className="economic-page tourism-page">
       <SectionHeader

@@ -18,8 +18,6 @@ export function peekDataset<T = unknown>(key: PrefetchKey): T | undefined {
   return values.get(key) as T | undefined;
 }
 export function primeDataset<T = unknown>(key: PrefetchKey): Promise<T> {
-  const existing = values.get(key);
-  if (existing) return Promise.resolve(existing as T);
   const running = pending.get(key);
   if (running) return running as Promise<T>;
   const promise = request(endpoints[key])

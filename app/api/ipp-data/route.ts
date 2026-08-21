@@ -1,200 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { parseIppOfficialFiles } from "../../../lib/ipp-official-data";
+import { latestPublishedAnalysisFiles } from "../../../lib/published-analysis-files";
 
-const sources = {
-  industries:
-    "https://www.ine.gob.cl/docs/default-source/indice-de-precios-de-productor/cuadros-estadisticos/base-anual-2019-100/industrias-xlsx.xlsx",
-  mining:
-    "https://www.ine.gob.cl/docs/default-source/indice-de-precios-de-productor/cuadros-estadisticos/base-anual-2019-100/miner%C3%ADa-xlsx.xlsx",
-  ipdega:
-    "https://www.ine.gob.cl/docs/default-source/indice-de-precios-de-productor/cuadros-estadisticos/base-anual-2019-100/ipdega-xlsx",
-  manufacturing:
-    "https://www.ine.gob.cl/docs/default-source/indice-de-precios-de-productor/cuadros-estadisticos/base-anual-2019-100/industria-manufacturera-xlsx.xlsx",
-} as const;
-
-type SourceKey = keyof typeof sources;
-type CacheRow = Record<string, string>;
-
-// Cambiar esta revisión obliga a comprobar una vez la fuente aunque la fila
-// existente haya sido marcada como revisada por una versión anterior.
-const CACHE_POLICY = "ipp-cache-first-v2";
-const headers = {
-  "Cache-Control": "no-store",
-  "Server-Timing": "data;desc=shared-cache",
-};
-
-const monthLabel = (value: string) => {
-  const [month, year] = value.split("-").map(Number);
-  if (!month || !year) return value;
-  const label = new Intl.DateTimeFormat("es-CL", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(year, month - 1, 1)));
-  return label[0].toUpperCase() + label.slice(1);
-};
-
-const chileDay = (value: string | Date) => {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "America/Santiago",
-  }).format(date);
-};
-
-const cachedResponse = (
-  cached: CacheRow,
-  status: "cached" | "shared" | "stale",
-  checkedAt = cached.checked_at,
-) =>
-  NextResponse.json(
-    {
-      ...JSON.parse(cached.payload_json),
-      sources: JSON.parse(cached.source_url),
-      cache: {
-        status,
-        checkedAt,
-        updatedAt: cached.updated_at,
-      },
-    },
-    {
-      headers: {
-        ...headers,
-        ...(status === "stale" ? { "X-Data-Warning": "stale" } : {}),
-      },
-    },
-  );
-
-async function downloadSource(key: SourceKey, refreshToken: string) {
-  const url = new URL(sources[key]);
-  // Sitefinity usa URLs estables. El parámetro evita reutilizar una respuesta
-  // intermedia antigua cuando el archivo fue reemplazado conservando su nombre.
-  url.searchParams.set("_ine_refresh", refreshToken);
-  const response = await fetch(url, {
-    cache: "no-store",
-    redirect: "follow",
-    headers: {
-      "cache-control": "no-cache",
-      pragma: "no-cache",
-      "user-agent": "INE-Relatos/1.0",
-    },
-  });
-  if (!response.ok) throw new Error(`No fue posible descargar ${key}`);
-  return {
-    key,
-    url: sources[key],
-    lastModified: response.headers.get("last-modified"),
-    etag: response.headers.get("etag"),
-    size: response.headers.get("content-length"),
-    buffer: await response.arrayBuffer(),
-  };
-}
-
-export async function GET(request: NextRequest) {
-  const db = (globalThis as typeof globalThis & { __SITES_DB?: D1Database })
-    .__SITES_DB;
-  if (!db)
-    return NextResponse.json(
-      { error: "La caché compartida aún no está disponible" },
-      { status: 503 },
-    );
-
-  await db
-    .prepare(
-      "CREATE TABLE IF NOT EXISTS economic_source_cache (kind TEXT PRIMARY KEY, source_url TEXT NOT NULL, source_last_modified TEXT, source_etag TEXT, source_size TEXT, payload_json TEXT NOT NULL, checked_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
-    )
-    .run();
-  const cached = await db
-    .prepare("SELECT * FROM economic_source_cache WHERE kind = ?")
-    .bind("ipp")
-    .first<CacheRow>();
-  const refresh = request.nextUrl.searchParams.get("refresh") === "1";
-
-  // Primera fase: nunca se consulta ine.gob.cl. La respuesta almacenada se
-  // entrega inmediatamente y la interfaz inicia luego la segunda fase.
-  if (cached && !refresh) return cachedResponse(cached, "cached");
-
-  const now = new Date();
-  const nowIso = now.toISOString();
-  const alreadyCheckedToday =
-    cached?.source_etag === CACHE_POLICY &&
-    chileDay(cached.checked_at) === chileDay(now);
-
-  if (cached && refresh && alreadyCheckedToday)
-    return cachedResponse(cached, "shared");
-
-  try {
-    const downloads = await Promise.all(
-      (Object.keys(sources) as SourceKey[]).map((key) =>
-        downloadSource(key, String(now.getTime())),
-      ),
-    );
-    const payload = parseIppOfficialFiles(
-      Object.fromEntries(
-        downloads.map(({ key, buffer }) => [key, buffer]),
-      ) as Record<SourceKey, ArrayBuffer>,
-    );
-    payload.data.updated = monthLabel(payload.data.updated);
-
-    const latest = payload.data.industries.at(-1);
-    if (!latest)
-      throw new Error("La planilla oficial no contiene períodos válidos");
-
-    const metadata = downloads.map(
-      ({ key, url, lastModified, etag, size }) => ({
-        key,
-        url,
-        lastModified,
-        etag,
-        size,
-      }),
-    );
-    const signature = JSON.stringify(
-      metadata.map(({ key, lastModified, etag, size }) => ({
-        key,
-        lastModified,
-        etag,
-        size,
-      })),
-    );
-
-    await db
-      .prepare(
-        "INSERT INTO economic_source_cache (kind,source_url,source_last_modified,source_etag,source_size,payload_json,checked_at,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(kind) DO UPDATE SET source_url=excluded.source_url,source_last_modified=excluded.source_last_modified,source_etag=excluded.source_etag,source_size=excluded.source_size,payload_json=excluded.payload_json,checked_at=excluded.checked_at,updated_at=excluded.updated_at",
-      )
-      .bind(
-        "ipp",
-        JSON.stringify(metadata),
-        signature,
-        CACHE_POLICY,
-        String(
-          downloads.reduce((total, item) => total + Number(item.size || 0), 0),
-        ),
-        JSON.stringify(payload),
-        nowIso,
-        nowIso,
-      )
-      .run();
-
-    return NextResponse.json(
-      {
-        ...payload,
-        sources: metadata,
-        cache: { status: "updated", checkedAt: nowIso, updatedAt: nowIso },
-      },
-      { headers },
-    );
-  } catch (error) {
-    if (cached) return cachedResponse(cached, "stale");
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Error de datos del IPP",
-      },
-      { status: 503 },
-    );
-  }
+const matchers = { industries: /industrias?(?!.*manufactur)/i, mining: /miner[ií]a/i, ipdega: /ipdega|electricidad.*gas.*agua/i, manufacturing: /manufactur/i } as const;
+const headers = { "Cache-Control": "no-store", "X-Analysis-Source": "internal-published" };
+export async function GET(request: Request) {
+  const db=(globalThis as typeof globalThis&{__SITES_DB?:D1Database}).__SITES_DB;if(!db)return NextResponse.json({error:"La caché compartida aún no está disponible"},{status:503});
+  await db.prepare("CREATE TABLE IF NOT EXISTS economic_source_cache (kind TEXT PRIMARY KEY, source_url TEXT NOT NULL, source_last_modified TEXT, source_etag TEXT, source_size TEXT, payload_json TEXT NOT NULL, checked_at TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
+  const cached=await db.prepare("SELECT * FROM economic_source_cache WHERE kind=?").bind("ipp").first<Record<string,string>>();
+  const refresh=new URL(request.url).searchParams.get("refresh")==="1";
+  // La ruta normal nunca consulta la fuente: entrega primero el último payload íntegro almacenado en D1.
+  if(cached&&!refresh)return NextResponse.json({...JSON.parse(cached.payload_json),sources:{},cache:{status:"cached",checkedAt:cached.checked_at,updatedAt:cached.updated_at}},{headers});
+  // Incluso con refresh explícito, una comprobación válida durante las últimas 24 horas evita tráfico duplicado a la fuente.
+  const checkedAt=cached?Date.parse(cached.checked_at):Number.NaN;
+  if(cached&&refresh&&Number.isFinite(checkedAt)&&Date.now()-checkedAt<86_400_000)return NextResponse.json({...JSON.parse(cached.payload_json),sources:{},cache:{status:"shared",checkedAt:cached.checked_at,updatedAt:cached.updated_at}},{headers});
+  try{const source=await latestPublishedAnalysisFiles("indice_de_precios_al_productor",matchers),signature=JSON.stringify({parserVersion:"3-internal",files:source.signature}),now=new Date().toISOString();
+    if(cached?.source_last_modified===signature){await db.prepare("UPDATE economic_source_cache SET checked_at=? WHERE kind='ipp'").bind(now).run();return NextResponse.json({...JSON.parse(cached.payload_json),sources:source.metadata,cache:{status:"shared",checkedAt:now,updatedAt:cached.updated_at}},{headers});}
+    const payload=parseIppOfficialFiles(await source.readAll());
+    await db.prepare("INSERT INTO economic_source_cache(kind,source_url,source_last_modified,source_etag,source_size,payload_json,checked_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(kind) DO UPDATE SET source_url=excluded.source_url,source_last_modified=excluded.source_last_modified,payload_json=excluded.payload_json,checked_at=excluded.checked_at,updated_at=excluded.updated_at").bind("ipp",JSON.stringify(source.metadata),signature,null,null,JSON.stringify(payload),now,now).run();
+    return NextResponse.json({...payload,sources:source.metadata,cache:{status:"updated",checkedAt:now,updatedAt:now}},{headers});
+  }catch(error){if(cached)return NextResponse.json({...JSON.parse(cached.payload_json),sources:{},cache:{status:"stale",checkedAt:cached.checked_at,updatedAt:cached.updated_at}},{headers:{...headers,"X-Data-Warning":"stale"}});return NextResponse.json({error:error instanceof Error?error.message:"Error de datos IPP"},{status:503});}
 }

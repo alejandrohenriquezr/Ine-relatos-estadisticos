@@ -1,10 +1,34 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const developmentPreviewMeta =
   /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
 const robotsMeta =
   /<meta(?=[^>]*\bname=["']robots["'])(?=[^>]*\bcontent=["'][^"']*noindex[^"']*nofollow[^"']*["'])[^>]*>/i;
+
+test("Informalidad incorpora el menú secundario de recursos", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const page = source.slice(
+    source.indexOf("function InformalityPage("),
+    source.indexOf("function ", source.indexOf("function InformalityPage(") + 1),
+  );
+  assert.match(page, /<ResourceTabs current="informality"\s*\/>/);
+});
+
+test("IPC incorpora el menú secundario de recursos", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const start = source.indexOf("function IpcPage(");
+  const page = source.slice(start, source.indexOf("function ", start + 1));
+  assert.match(page, /<ResourceTabs current="ipc"\s*\/>/);
+});
+
+test("IPP incorpora el menú secundario de recursos", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const start = source.indexOf("function IppPage(");
+  const page = source.slice(start, source.indexOf("function ", start + 1));
+  assert.match(page, /<ResourceTabs current="ipp"\s*\/>/);
+});
 
 test("renders development preview metadata", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);

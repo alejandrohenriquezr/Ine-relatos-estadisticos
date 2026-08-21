@@ -8,6 +8,300 @@
       "when": 1784316375298,
       "tag": "0000_mean_hedge_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785342060890,
+      "tag": "0001_natural_dormammu",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785342119588,
+      "tag": "0002_furry_shard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785342737131,
+      "tag": "0003_remarkable_jack_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1785343403863,
+      "tag": "0004_seed_publications",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1785362363775,
+      "tag": "0005_import_ene_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785362811044,
+      "tag": "0006_freezing_master_mold",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1785364320323,
+      "tag": "0007_import_ene_bulletins",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1785364845323,
+      "tag": "0008_update_ene_bulletin_dates",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1785417710599,
+      "tag": "0009_unique_mysterio",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1785417720733,
+      "tag": "0010_seed_publication_subtypes",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1785418387649,
+      "tag": "0011_rename_results_to_bulletins",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1785445200000,
+      "tag": "0012_import_ene_separatas",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1785448800000,
+      "tag": "0013_import_ene_working_papers",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1785452400000,
+      "tag": "0014_import_ene_infographics",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1785456000000,
+      "tag": "0015_import_ene_documentation_databases",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1785542400000,
+      "tag": "0016_import_informalidad_publications",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1785546000000,
+      "tag": "0017_import_informalidad_documentation",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1785549600000,
+      "tag": "0018_import_informalidad_databases",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1785636000000,
+      "tag": "0019_import_ipc_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1785639600000,
+      "tag": "0020_ipc_bulletin_year_subtypes",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1785650400000,
+      "tag": "0021_import_ipp_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1786233600000,
+      "tag": "0022_editorial_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1786320000000,
+      "tag": "0023_shadow_migrate_publications",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1786406400000,
+      "tag": "0024_final_activation",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1786413268285,
+      "tag": "0025_cms_content_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1786413655897,
+      "tag": "0026_cms_workflow_rbac",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1786414796238,
+      "tag": "0027_cms_document_content_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1786415044140,
+      "tag": "0028_cms_resource_center",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1786415457744,
+      "tag": "0029_cms_files_bulk_trash",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1786416134006,
+      "tag": "0030_cms_scheduling_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1786416729035,
+      "tag": "0031_cms_shadow_migration",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1786420800000,
+      "tag": "0032_activate_ipp_shadow",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1786424400000,
+      "tag": "0033_activate_ipp_cms",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1786428000000,
+      "tag": "0034_activate_ipc_shadow",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1786431600000,
+      "tag": "0035_activate_ipc_cms",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1786435200000,
+      "tag": "0036_activate_informalidad_shadow",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1786438800000,
+      "tag": "0037_activate_informalidad_cms",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1786442400000,
+      "tag": "0038_activate_ene_shadow",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1786446000000,
+      "tag": "0039_activate_ene_cms",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1786478400000,
+      "tag": "0040_seed_cms_themes",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1786482000000,
+      "tag": "0041_enable_advanced_visual_cms",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1786485600000,
+      "tag": "0042_visual_layout_components",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type CSSProperties,
   type ChangeEvent,
   useEffect,
   useLayoutEffect,
@@ -29,8 +30,10 @@ import TourismPage from "./TourismPage";
 import SupermarketsPage from "./SupermarketsPage";
 import SectionHeader, {
   HomeNavLink,
+  ResourceTabs,
   type SiteDestination,
 } from "./SectionHeader";
+import TopicTreeMenu from "./TopicTreeMenu";
 import { primeDataset, type PrefetchKey } from "../lib/client-data-prefetch";
 import {
   useTemporalWindow,
@@ -322,6 +325,7 @@ function useVitalData() {
     unions: unionsRawData as UnionsData,
   };
   const [data, setData] = useState<VitalDataResponse>(fallback);
+  const [ready, setReady] = useState(true);
   useEffect(() => {
     let active = true;
     fetch("/api/vital-data", { cache: "no-store" })
@@ -334,7 +338,7 @@ function useVitalData() {
         return payload as VitalDataResponse;
       })
       .then((payload) => {
-        if (active && payload.births?.series?.length) setData(payload);
+        if (active && payload.births?.series?.length) { setData(payload); setReady(true); void fetch("/api/vital-data?refresh=1", { cache: "no-store" }); }
       })
       .catch(() => {
         // La copia incluida permanece visible cuando la fuente oficial no responde.
@@ -343,7 +347,7 @@ function useVitalData() {
       active = false;
     };
   }, []);
-  return data;
+  return { ...data, _ready: ready };
 }
 type EnuscEstimate = {
   group: string;
@@ -1451,8 +1455,9 @@ function PriceHeader({
           <a href="https://www.ine.gob.cl/institucional/">Acerca del INE</a>
         </nav>
       </div>
-      <nav className="topics">
+      <nav className="topics topic-explorer legacy-topics">
         <HomeNavLink />
+        <TopicTreeMenu onNavigate={(destination) => window.dispatchEvent(new CustomEvent("site:navigate", { detail: destination }))} />
         <div
           className={`topic-dropdown ${laborOpen ? "open" : ""}`}
           onMouseLeave={() => setLaborOpen(false)}
@@ -2198,6 +2203,7 @@ function IpcPage({
   const fallbackData = ipcRawData as IpcData;
   const fallbackAnalytics = ipcAnalyticsRawData as IpcAnalyticsData;
   const [data, setData] = useState<IpcData>(fallbackData);
+  const [sharedDataReady, setSharedDataReady] = useState(true);
   const [analytics, setAnalytics] =
     useState<IpcAnalyticsData>(fallbackAnalytics);
   const periods = useMemo(
@@ -2259,6 +2265,8 @@ function IpcPage({
         if (!active || !payload.data?.series?.length) return;
         setData(payload.data);
         setAnalytics(payload.analytics);
+        setSharedDataReady(true);
+        void fetch("/api/ipc-data?refresh=1", { cache: "no-store" });
         const latestPeriod = payload.data.series
           .filter((point) => point.division === 0)
           .sort((a, b) => b.year - a.year || b.month - a.month)[0];
@@ -2287,6 +2295,7 @@ function IpcPage({
       current = false;
     };
   }, [selectedYear, selectedMonth]);
+  if (!sharedDataReady) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   return (
     <main>
       <PriceHeader
@@ -2299,6 +2308,7 @@ function IpcPage({
         onDeaths={onDeaths}
         current="ipc"
       />
+      <ResourceTabs current="ipc" />
       <section className="hero wrap ipc-hero">
         <div>
           <span className="eyebrow">Precios e inflación · IPC</span>
@@ -2511,7 +2521,7 @@ function IpcPage({
           )}
         </div>
       </section>
-      <section className="resources">
+      <section className="resources ipc-analysis-resources">
         <div className="wrap">
           <div className="section-title">
             <span className="eyebrow">Centro de recursos</span>
@@ -2571,7 +2581,6 @@ function IpcPage({
             </a>
           </div>
           <IpcCalculator />
-          <PriceSdmxBox dataset="IPC" />
         </div>
       </section>
       <footer>
@@ -3194,6 +3203,7 @@ function IppPage({
   const fallbackData = ippRawData as IppData;
   const fallbackDivisions = ippmanDivisionsRaw as IppDivisionPoint[];
   const [data, setData] = useState<IppData>(fallbackData);
+  const [sharedDataReady, setSharedDataReady] = useState(true);
   const [manufacturingDivisions, setManufacturingDivisions] =
     useState<IppDivisionPoint[]>(fallbackDivisions);
   const periods = useMemo(
@@ -3224,6 +3234,7 @@ function IppPage({
     }) => {
       if (!active || !payload.data?.industries?.length) return;
       setData(payload.data);
+      setSharedDataReady(true);
       if (payload.divisions?.length)
         setManufacturingDivisions(payload.divisions);
       const latest = payload.data.industries.at(-1);
@@ -3276,6 +3287,7 @@ function IppPage({
   const strongest = [...sectors].sort(
     (a, b) => Math.abs(b.point.monthly) - Math.abs(a.point.monthly),
   )[0];
+  if (!sharedDataReady) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   return (
     <main>
       <PriceHeader
@@ -3288,6 +3300,7 @@ function IppPage({
         onDeaths={onDeaths}
         current="ipp"
       />
+      <ResourceTabs current="ipp" />
       <section className="hero wrap ipc-hero ipp-hero">
         <div>
           <span className="eyebrow">Precios e inflación · IPP</span>
@@ -3419,13 +3432,12 @@ function IppPage({
         year={year}
         month={month}
       />
-      <section className="resources">
+      <section className="resources ipp-analysis-resources">
         <div className="wrap">
           <div className="section-title">
             <span className="eyebrow">Centro de recursos</span>
             <h2>Datos y documentación del IPP</h2>
           </div>
-          <PriceSdmxBox dataset="IPP" />
         </div>
       </section>
       <footer>
@@ -4226,6 +4238,7 @@ function InformalityPage({
 }) {
   const fallback = informalityRawData as InformalityData;
   const [data, setData] = useState<InformalityData>(fallback);
+  const [sharedDataReady, setSharedDataReady] = useState(true);
   const [period, setPeriod] = useState(
     `${fallback.rates.at(-1)!.year}|${fallback.rates.at(-1)!.quarter}`,
   );
@@ -4255,6 +4268,8 @@ function InformalityPage({
           updated: payload.updated || fallback.updated,
         } as InformalityData;
         setData(next);
+        setSharedDataReady(true);
+        void fetch("/api/informality-data?refresh=1", { cache: "no-store" });
         const latest = next.rates.at(-1);
         if (latest) setPeriod(`${latest.year}|${latest.quarter}`);
       })
@@ -4343,6 +4358,7 @@ function InformalityPage({
           .map((item) => `${item.label.toLowerCase()} (${fmt(item.annual)})`)
           .join(" y ")
       : "no presenta desgloses con incidencias positivas disponibles";
+  if (!sharedDataReady) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   return (
     <main>
       <PriceHeader
@@ -4355,6 +4371,7 @@ function InformalityPage({
         onDeaths={onDeaths}
         current="informality"
       />
+      <ResourceTabs current="informality" />
       <section className="hero wrap ipc-hero informal-hero">
         <div>
           <span className="eyebrow">Mercado laboral · ENE</span>
@@ -4619,7 +4636,6 @@ function InformalityPage({
               <b>Ver documentación ↗</b>
             </a>
           </div>
-          <LaborSdmxBox context="informality" />
         </div>
       </section>
       <footer>
@@ -5418,11 +5434,12 @@ function FertilityPage({
   onBirths: () => void;
   onDeaths: () => void;
 }) {
-  const data = useVitalData().fertility.series,
+  const vital = useVitalData(), data = vital.fertility.series,
     latest = data.at(-1)!,
     first = data[0],
     peakLatest = [...latest.specificRates].sort((a, b) => b.value - a.value)[0],
     peakFirst = [...first.specificRates].sort((a, b) => b.value - a.value)[0];
+  if (!vital._ready) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   const pct = (current: number, base: number) =>
     Math.abs((current / base - 1) * 100)
       .toFixed(1)
@@ -7172,7 +7189,7 @@ function UnionsPage({
   onFertility: () => void;
   onDeaths: () => void;
 }) {
-  const raw = useVitalData().unions,
+  const vital = useVitalData(), raw = vital.unions,
     marriages = raw.marriages,
     auc = raw.auc,
     latestMarriage = marriages.at(-1)!,
@@ -7189,6 +7206,7 @@ function UnionsPage({
     differentSexShare = (latestAuc.differentSex / latestAuc.total) * 100,
     marriageAnnual = (latestMarriage.total / previousMarriage.total - 1) * 100,
     aucAnnual = (latestAuc.total / previousAuc.total - 1) * 100;
+  if (!vital._ready) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   return (
     <main>
       <PriceHeader
@@ -7436,7 +7454,7 @@ function MortalityPage({
   onFertility: () => void;
   onDeaths: () => void;
 }) {
-  const data = useVitalData().mortality.series,
+  const vital = useVitalData(), data = vital.mortality.series,
     latest = data.at(-1)!,
     previous = data.at(-2)!,
     first = data[0],
@@ -7445,6 +7463,7 @@ function MortalityPage({
     lifeGain = latest.lifeBoth - first.lifeBoth,
     gapFirst = first.lifeWomen - first.lifeMen,
     gapLatest = latest.lifeWomen - latest.lifeMen;
+  if (!vital._ready) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   return (
     <main>
       <PriceHeader
@@ -7667,7 +7686,7 @@ function DeathsPage({
   onFertility: () => void;
   onMortality: () => void;
 }) {
-  const data = useVitalData().deaths.series,
+  const vital = useVitalData(), data = vital.deaths.series,
     latest = data.at(-1)!,
     previous = data.at(-2)!,
     first = data[0],
@@ -7684,6 +7703,7 @@ function DeathsPage({
     correlation = pearson(corrPoints);
   const annual = (latest.total / previous.total - 1) * 100,
     change = (latest.total / first.total - 1) * 100;
+  if (!vital._ready) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   return (
     <main>
       <PriceHeader
@@ -7892,11 +7912,12 @@ function BirthsPage({
   onFertility: () => void;
   onDeaths: () => void;
 }) {
-  const data = useVitalData().births.series,
+  const vital = useVitalData(), data = vital.births.series,
     latest = data.at(-1)!,
     previous = data.at(-2)!,
     annual = (latest.observed / previous.observed - 1) * 100,
     from1992 = (latest.observed / data[0].observed - 1) * 100;
+  if (!vital._ready) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   return (
     <main>
       <PriceHeader
@@ -8459,6 +8480,7 @@ export function PolicePage({
   onEnusc: () => void;
 }) {
   const [data, setData] = useState<PoliceData>(policeRawData as PoliceData);
+  const [sharedDataReady, setSharedDataReady] = useState(true);
   useEffect(() => {
     let active = true;
     fetch("/api/police-data", { cache: "no-store" })
@@ -8472,7 +8494,7 @@ export function PolicePage({
           active &&
           payload.institutions?.carabineros?.series?.denuncias?.length
         )
-          setData(payload);
+          { setData(payload); setSharedDataReady(true); void fetch("/api/police-data?refresh=1", { cache: "no-store" }); }
       })
       .catch(() => {
         /* La copia local permanece visible si la fuente oficial no responde. */
@@ -8481,6 +8503,7 @@ export function PolicePage({
       active = false;
     };
   }, []);
+  if (!sharedDataReady) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando datos vigentes...</p></main>;
   return (
     <main className="police-page">
       <PriceHeader
@@ -8875,13 +8898,16 @@ function EnuscRegionalMap({
 }
 
 function EnuscExplorer({ data }: { data: EnuscData }) {
-  const themes = Object.keys(data.themes),
-    [theme, setTheme] = useState(themes[0]),
+  // Algunos archivos publicados no incluyen el índice `themes`, aunque sí
+  // contienen metadatos de cada indicador. Se deriva desde esos metadatos para
+  // que el explorador no dependa de un campo auxiliar potencialmente vacío.
+  const themes = [...new Set(data.metadata.map((item) => item.theme))],
+    [theme, setTheme] = useState(themes[0] || ""),
     options = data.metadata.filter((item) => item.theme === theme),
-    [variable, setVariable] = useState(options[0].variable),
+    [variable, setVariable] = useState(options[0]?.variable || ""),
     meta =
       data.metadata.find((item) => item.variable === variable) || options[0],
-    records = data.tabulations[meta.variable],
+    records = meta ? data.tabulations[meta.variable] || [] : [],
     regions = [...new Set(records.map((record) => record.region))],
     [region, setRegion] = useState("TOTAL NACIONAL"),
     regionalRecords = records.filter((record) => record.region === region),
@@ -8890,7 +8916,8 @@ function EnuscExplorer({ data }: { data: EnuscData }) {
     ],
     [group, setGroup] = useState("Total");
   useEffect(() => {
-    const next = data.metadata.find((item) => item.theme === theme)!;
+    const next = data.metadata.find((item) => item.theme === theme);
+    if (!next) return;
     setVariable(next.variable);
     setRegion("TOTAL NACIONAL");
     setGroup("Total");
@@ -8899,6 +8926,13 @@ function EnuscExplorer({ data }: { data: EnuscData }) {
     setRegion("TOTAL NACIONAL");
     setGroup("Total");
   }, [variable]);
+  if (!meta) {
+    return (
+      <div className="enusc-loading">
+        <p>El explorador no tiene indicadores disponibles temporalmente.</p>
+      </div>
+    );
+  }
   const chartItems: EnuscChartItem[] =
     meta.type === "Categórica"
       ? regionalRecords
@@ -9001,7 +9035,7 @@ function EnuscPage({
   onPolice: () => void;
 }) {
   const [data, setData] = useState<EnuscData>(enuscInitialRaw as EnuscData),
-    [fullDataReady, setFullDataReady] = useState(false),
+    [fullDataReady, setFullDataReady] = useState(true),
     [error, setError] = useState(false),
     [regionalVariable, setRegionalVariable] = useState("PAD_SEX"),
     [gapVariable, setGapVariable] = useState("PCOS_SEX"),
@@ -9018,6 +9052,7 @@ function EnuscPage({
         if (active) {
           setData(payload);
           setFullDataReady(true);
+          void fetch("/api/enusc-data?refresh=1", { cache: "no-store" });
         }
       })
       .catch(() => active && setError(true));
@@ -9117,6 +9152,7 @@ function EnuscPage({
           record.estimates[0]),
         label: record.category || "Total",
       }));
+  if (!fullDataReady) return <main className="analysis-loading"><span className="analysis-spinner" /><p>{error ? "No fue posible cargar los datos vigentes." : "Cargando datos vigentes..."}</p></main>;
   return (
     <main className="enusc-page">
       <PriceHeader
@@ -9477,61 +9513,32 @@ function EnuscPage({
   );
 }
 
+type TopicBranch = { label: string; destination?: SiteDestination };
+type TopicTree = { id: string; label: string; branches: TopicBranch[] };
+const branches = (items: (string | TopicBranch)[]): TopicBranch[] => items.map((item) => typeof item === "string" ? { label: item } : item);
+// Clasificación temática y nombres de operaciones vigentes en ine.gob.cl/estadisticas-por-tema.
+const TOPIC_TREE: TopicTree[] = [
+  { id: "agro", label: "Agricultura y medio ambiente", branches: branches(["Censo Agropecuario", "Elaboración de cecinas", "Ferias y mataderos de ganado y aves", "Hortalizas", "Leche y productos lácteos", "Medioambiente", "Producción pecuaria", "Siembra y cosecha", "Censo Pesquero y Acuícola", "Vitivinicultura"]) },
+  { id: "science", label: "Ciencia y tecnología", branches: branches(["Encuesta Longitudinal de Empresas", "Encuesta Nacional de Innovación en Empresas", "Encuesta sobre Gasto y Personal en Investigación y Desarrollo"]) },
+  { id: "services", label: "Comercio y servicios", branches: branches([{ label: "Actividad mensual del comercio", destination: "commerce" }, { label: "Actividad mensual del turismo", destination: "tourism" }, "Estructura de alojamiento y alimentación", "Estructura del comercio", "Estructura de servicios", "Estructura del transporte de carga por carretera", "Estructura del transporte interurbano de pasajeros", "Inventarios del comercio", "Licencias de conducir", "Permisos de circulación", "Telefonía, correspondencia, medios de transporte y otros", "Ventas mensuales de servicios", { label: "Ventas mensuales de supermercados", destination: "supermarkets" }, "Ventas mensuales de comercio al por menor"]) },
+  { id: "demography", label: "Demografía y población", branches: branches(["Censo de Población y Vivienda", "Demografía", { label: "Nacimientos", destination: "births" }, { label: "Fecundidad", destination: "fertility" }, { label: "Defunciones", destination: "deaths" }, { label: "Mortalidad", destination: "mortality" }, { label: "Matrimonios y acuerdos de unión civil", destination: "unions" }, "Estimaciones y proyecciones de población", "Resultados Censo 2024"]) },
+  { id: "industry", label: "Industria, energía y construcción", branches: branches(["Estructura de la electricidad, gas y agua", "Estructura de la industria manufacturera", "Estructura de la minería", { label: "Índice de Producción Industrial", destination: "industry" }, "Ingresos de la construcción de grandes empresas de edificación y de obras de ingeniería civil", "Inventarios de la industria manufacturera", "Inventarios de la minería del cobre", "Molienda de trigo", { label: "Permisos de edificación", destination: "permits" }, { label: "Producción de electricidad, gas y agua", destination: "energy" }, "Producción de la industria manufacturera", "Producción minera"]) },
+  { id: "macro", label: "Macroeconomía y finanzas públicas", branches: branches(["Repositorio de estadísticas regionales", "Actividad económica regional", "Informe económico regional", "Macroeconómicas y finanzas públicas"]) },
+  { id: "labor", label: "Mercado laboral", branches: branches(["Condiciones de empleo y relaciones laborales", "Encuesta Suplementaria de Ingresos", "Estadísticas de flujos laborales", { label: "Informalidad laboral", destination: "informality" }, "Microemprendimiento", "Ocupación en las actividades características del turismo", "Ocupación en las actividades características de la cultura", { label: "Ocupación y desocupación", destination: "ene" }, "Remuneraciones y costos laborales", "Trabajo infantil y adolescente", "Uso del tiempo - Trabajo no remunerado"]) },
+  { id: "prices", label: "Precios e inflación", branches: branches(["Índice de Costos del Transporte", { label: "Índice de Precios al Consumidor", destination: "ipc" }, { label: "Índice de Precios de Productor", destination: "ipp" }, "Índice de Precios al por Mayor", "Índices Referenciales de Costos de las Isapre"]) },
+  { id: "living", label: "Sociedad y condiciones de vida", branches: branches(["Atlas de género", "Cultura", "Diversidades sexuales y de género", "Encuesta de Presupuestos Familiares", { label: "Estadísticas policiales y judiciales", destination: "police" }, "Indicadores Subcomisión de Estadísticas de Género", "Participación cultural y comportamiento lector", "Publicaciones y metodología con enfoque de género", { label: "Seguridad ciudadana (ENUSC)", destination: "enusc" }, "Uso del tiempo - Trabajo no remunerado", "Calidad de vida y salud", "Discapacidad", "Condiciones de vida"]) },
+];
+function TopicDendrogram({ onNavigate }: { onNavigate: (destination: SiteDestination) => void }) {
+  const [selectedId, setSelectedId] = useState("labor"); const [query, setQuery] = useState(""); const q = query.trim().toLocaleLowerCase("es-CL");
+  const visible = TOPIC_TREE.filter((topic) => !q || topic.label.toLocaleLowerCase("es-CL").includes(q) || topic.branches.some((branch) => branch.label.toLocaleLowerCase("es-CL").includes(q)));
+  const selected = visible.find((topic) => topic.id === selectedId) || visible[0] || TOPIC_TREE[0];
+  return <section id="explorar-temas" className="topic-tree-section" aria-labelledby="topic-tree-title"><div className="wrap"><div className="topic-tree-heading"><div><span className="eyebrow">Navegación por temas</span><h2 id="topic-tree-title">Explora las estadísticas del INE</h2><p>Selecciona un tema y recorre sus operaciones estadísticas. Las operaciones disponibles en este sitio se identifican como relatos interactivos.</p></div><label className="topic-search"><span>Buscar operación</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ej.: inflación, turismo, nacimientos" /></label></div><div className="topic-dendrogram"><div className="topic-root" aria-hidden="true"><span>Estadísticas<br />por tema</span></div><div className="topic-branches" role="tablist" aria-label="Temas estadísticos">{visible.map((topic) => <button key={topic.id} role="tab" type="button" aria-selected={selected.id === topic.id} className={selected.id === topic.id ? "selected" : ""} onClick={() => setSelectedId(topic.id)}><span className="branch-dot" aria-hidden="true" />{topic.label}<small>{topic.branches.filter((branch) => branch.destination).length} relatos</small></button>)}</div><div className="operation-branches" role="tabpanel" aria-label={`Operaciones de ${selected.label}`}><div className="operation-tree-heading"><span>Tema</span><h3>{selected.label}</h3></div><ul>{selected.branches.filter((branch) => !q || branch.label.toLocaleLowerCase("es-CL").includes(q)).map((branch) => <li key={branch.label} className={branch.destination ? "available" : "pending"}>{branch.destination ? <button type="button" onClick={() => onNavigate(branch.destination!)}><span>{branch.label}</span><b>Ver relato →</b></button> : <span>{branch.label}<small>Próximamente</small></span>}</li>)}</ul></div></div></div></section>;
+}
 function LandingPage({
   onNavigate,
 }: {
   onNavigate: (destination: SiteDestination) => void;
 }) {
-  const topics: {
-    number: string;
-    title: string;
-    description: string;
-    destination: SiteDestination;
-  }[] = [
-    {
-      number: "01",
-      title: "Mercado laboral",
-      description:
-        "Ocupación, desocupación, participación e informalidad explicadas mediante series y relatos.",
-      destination: "ene",
-    },
-    {
-      number: "02",
-      title: "Precios",
-      description:
-        "IPC e índices de precios de productor para comprender la evolución de los precios.",
-      destination: "ipc",
-    },
-    {
-      number: "03",
-      title: "Demografía y población",
-      description:
-        "Nacimientos, fecundidad, defunciones, mortalidad, matrimonios y acuerdos de unión civil.",
-      destination: "births",
-    },
-    {
-      number: "04",
-      title: "Condiciones de vida",
-      description:
-        "Victimización, percepción de inseguridad y estadísticas policiales presentadas territorialmente.",
-      destination: "enusc",
-    },
-    {
-      number: "05",
-      title: "Industria y construcción",
-      description:
-        "Producción industrial, energía y permisos de edificación para seguir la actividad económica.",
-      destination: "industry",
-    },
-    {
-      number: "06",
-      title: "Servicios",
-      description:
-        "Comercio, turismo y supermercados a través de indicadores coyunturales y comparaciones.",
-      destination: "commerce",
-    },
-  ];
-
   return (
     <main className="landing-page">
       <SectionHeader current="home" onNavigate={onNavigate} />
@@ -9542,18 +9549,12 @@ function LandingPage({
             <span className="eyebrow">
               INE · Estadísticas oficiales de Chile
             </span>
-            <h1>Los datos cuentan historias sobre el país que habitamos.</h1>
+            <h1>Relatos estadísticos</h1>
             <p>
               Relatos Estadísticos transforma cifras oficiales en recorridos
               visuales, comparables e interactivos para acercar la información
               del INE a todas las personas.
             </p>
-            <div className="landing-actions">
-              <button onClick={() => onNavigate("ene")}>
-                Explorar los relatos
-              </button>
-              <a href="#datos-abiertos">Conocer los datos abiertos ↓</a>
-            </div>
           </div>
           <aside
             className="landing-data-path"
@@ -9604,28 +9605,6 @@ function LandingPage({
         </div>
       </section>
 
-      <section className="landing-topics">
-        <div className="wrap">
-          <div className="section-title">
-            <span className="eyebrow">Temas disponibles</span>
-            <h2>Distintas miradas sobre Chile</h2>
-            <p>Elige un tema y comienza el recorrido.</p>
-          </div>
-          <div className="landing-topic-grid">
-            {topics.map((topic) => (
-              <button
-                key={topic.number}
-                onClick={() => onNavigate(topic.destination)}
-              >
-                <span>{topic.number}</span>
-                <h3>{topic.title}</h3>
-                <p>{topic.description}</p>
-                <b>Ver relato →</b>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
 
       <section id="datos-abiertos" className="landing-open-data">
         <div className="wrap">
@@ -10057,6 +10036,8 @@ function LaborPopulationDendrogram({
   );
 }
 
+type EneCmsConfig = { title?:string; eyebrow?:string; intro?:string; accentColor?:string; contextTitle?:string; detailTitle?:string; unemploymentTitle?:string; employmentTitle?:string; participationTitle?:string; showHero?:boolean; showKpis?:boolean; showContext?:boolean; showDetail?:boolean; showLaborTree?:boolean; showUnemployment?:boolean; showEmployment?:boolean; showParticipation?:boolean; showResources?:boolean; defaultIndicator?:string; defaultSeries?:string[]; defaultPeriodMode?:string };
+
 export default function Home() {
   const [remoteEne, setRemoteEne] = useState<EneRemoteData | null>(null);
   const data = useMemo(() => {
@@ -10086,6 +10067,7 @@ export default function Home() {
   const [indicator, setIndicator] = useState("unemploymentRate");
   const [active, setActive] = useState(["Total", "Mujeres", "Hombres"]);
   const [menu, setMenu] = useState(false);
+  const [eneCms, setEneCms] = useState<EneCmsConfig>({});
   const [view, setView] = useState<
     | "home"
     | "ene"
@@ -10112,16 +10094,43 @@ export default function Home() {
   const [livingOpen, setLivingOpen] = useState(false);
   const [industryOpen, setIndustryOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
-  const openDestination = async (destination: string) => {
-    if (["commerce", "tourism", "supermarkets"].includes(destination)) {
-      try {
-        await primeDataset(destination as PrefetchKey);
-      } catch {
-        /* La página conserva su estado de respaldo. */
-      }
+  useEffect(() => {
+    // Después de hidratar, mantiene la operación pedida por la vista previa del CMS.
+    const requested = new URLSearchParams(window.location.search).get("page");
+    if (!requested) return;
+    const aliases: Record<string, string> = {
+      ocupacion_y_desocupacion: "ene", ene: "ene", informalidad_laboral: "informality",
+      indice_de_precios_al_consumidor: "ipc", ipc: "ipc", indice_de_precios_de_productor: "ipp", ipp: "ipp",
+      nacimientos: "births", fecundidad: "fertility", defunciones: "deaths", mortalidad: "mortality",
+      acuerdos_de_union_civil: "unions", matrimonios: "unions", enusc: "enusc", estadisticas_policiales: "police",
+    };
+    setView((aliases[requested] || requested) as typeof view);
+  }, []);
+  useEffect(() => {
+    // La vista previa usa la configuración no publicada que llega en la URL;
+    // la página normal solo consulta la versión aprobada y publicada del CMS.
+    const params = new URLSearchParams(window.location.search); const preview = params.get("cmsPreview");
+    if (preview) {
+      try { setEneCms(JSON.parse(preview) as EneCmsConfig); } catch { setEneCms({}); }
+      return;
     }
+    fetch("/api/v1/public/pages/ocupacion_y_desocupacion", { cache: "no-store" }).then((response)=>response.ok?response.json():{data:null}).then((payload)=>{
+      const block=payload.data?.sections?.flatMap((section:{components?:Array<{typeCode:string;config:EneCmsConfig}>})=>section.components||[]).find((item:{typeCode:string})=>item.typeCode==="legacy_interactive");
+      if(block?.config) setEneCms(block.config);
+    }).catch(()=>setEneCms({}));
+  }, []);
+  useEffect(() => {
+    if (eneCms.defaultIndicator) setIndicator(eneCms.defaultIndicator);
+    if (Array.isArray(eneCms.defaultSeries) && eneCms.defaultSeries.length) setActive(eneCms.defaultSeries);
+  }, [eneCms.defaultIndicator, eneCms.defaultSeries]);
+  const openDestination = (destination: string) => {
     setView(destination as typeof view);
     window.scrollTo(0, 0);
+    if (["commerce", "tourism", "supermarkets"].includes(destination)) {
+      void primeDataset(destination as PrefetchKey).catch(() => {
+        /* La página conserva su estado de respaldo. */
+      });
+    }
   };
   useEffect(() => {
     void Promise.allSettled([
@@ -10143,6 +10152,7 @@ export default function Home() {
       .then((payload) => {
         if (!activeRequest) return;
         setRemoteEne(payload);
+        void fetch("/api/ene-data?refresh=1", { cache: "no-store" });
         const latestPeriod = payload.series.Total?.at(-1);
         if (latestPeriod) {
           setYear(latestPeriod.year);
@@ -10159,22 +10169,7 @@ export default function Home() {
   useEffect(() => {
     const navigate = (event: Event) => {
       const destination = (event as CustomEvent<string>).detail;
-      if (destination === "mortality") {
-        setView("mortality");
-        window.scrollTo(0, 0);
-      }
-      if (destination === "unions") {
-        setView("unions");
-        window.scrollTo(0, 0);
-      }
-      if (destination === "enusc") {
-        setView("enusc");
-        window.scrollTo(0, 0);
-      }
-      if (destination === "police") {
-        setView("police");
-        window.scrollTo(0, 0);
-      }
+      if (["ene", "informality", "ipc", "ipp", "births", "fertility", "deaths", "mortality", "unions", "enusc", "police"].includes(destination)) { setView(destination as typeof view); window.scrollTo(0, 0); }
       if (
         destination === "energy" ||
         destination === "industry" ||
@@ -10336,6 +10331,8 @@ export default function Home() {
         onNavigate={(destination) => void openDestination(destination)}
       />
     );
+  if (view === "ene" && !remoteEne)
+    return <main className="analysis-loading" role="status"><span /><strong>Cargando el último análisis ENE publicado…</strong><p>La vista se mostrará cuando los datos internos vigentes estén listos.</p></main>;
   if (view === "informality")
     return (
       <InformalityPage
@@ -10610,7 +10607,7 @@ export default function Home() {
       />
     );
   return (
-    <main>
+    <main style={{"--cms-accent":eneCms.accentColor||"#005A9C"} as CSSProperties}>
       <header>
         <div className="topbar">
           <div className="brand">
@@ -10623,8 +10620,9 @@ export default function Home() {
             </button>
           </nav>
         </div>
-        <nav className={`topics ${menu ? "open" : ""}`}>
+        <nav className={`topics topic-explorer legacy-topics ${menu ? "open" : ""}`}>
           <HomeNavLink />
+          <TopicTreeMenu onNavigate={(destination) => window.dispatchEvent(new CustomEvent("site:navigate", { detail: destination }))} />
           <div
             className={`topic-dropdown ${laborOpen ? "open" : ""}`}
             onMouseLeave={() => setLaborOpen(false)}
@@ -10847,18 +10845,12 @@ export default function Home() {
           </div>
         </nav>
       </header>
-      <section id="inicio" className="hero wrap">
+      <ResourceTabs current="ene" />
+      {eneCms.showHero!==false&&<section id="inicio" className="hero wrap">
         <div>
-          <span className="eyebrow">Mercado laboral · ENE</span>
-          <h1>
-            Encuesta Nacional
-            <br />
-            de Empleo
-          </h1>
-          <p>
-            Principales indicadores del mercado laboral en Chile, actualizados
-            mensualmente.
-          </p>
+          <span className="eyebrow">{eneCms.eyebrow||"Mercado laboral · ENE"}</span>
+          <h1>{eneCms.title||<>Encuesta Nacional<br />de Empleo</>}</h1>
+          <p>{eneCms.intro||"Principales indicadores del mercado laboral en Chile, actualizados mensualmente."}</p>
         </div>
         <div className="period-box">
           <span>Período consultado</span>
@@ -10891,8 +10883,8 @@ export default function Home() {
           </div>
           <small>Última actualización: 30 de junio de 2026</small>
         </div>
-      </section>
-      <section className="wrap kpis principal-kpis">
+      </section>}
+      {eneCms.showKpis!==false&&<section className="wrap kpis principal-kpis">
         <article className="alert">
           <div className="kpi-icon">
             <Icon name="user" />
@@ -10963,7 +10955,7 @@ export default function Home() {
             </p>
           </div>
         </article>
-        <article className="seasonal">
+        {seasonalPoint && <article className="seasonal">
           <div className="kpi-icon">
             <Icon name="user" />
           </div>
@@ -10986,7 +10978,7 @@ export default function Home() {
                 : `${Math.abs(seasonalDelta).toFixed(1).replace(".", ",")} pp. respecto del trimestre anterior`}
             </p>
           </div>
-        </article>
+        </article>}
         <article className="sectors">
           <div>
             <span className="eyebrow">Incidencias positivas</span>
@@ -11011,8 +11003,8 @@ export default function Home() {
             </ol>
           </div>
         </article>
-      </section>
-      <section className="wrap dashboard">
+      </section>}
+      {eneCms.showContext!==false&&<section className="wrap dashboard">
         {data && (
           <Chart
             data={liveIndicatorData}
@@ -11028,7 +11020,7 @@ export default function Home() {
           <span className="eyebrow">
             En contexto · {shortQuarter} {year}
           </span>
-          <h2>Qué muestran los datos</h2>
+          <h2>{eneCms.contextTitle||"Qué muestran los datos"}</h2>
           <div className="insight">
             <b>
               Desocupación:{" "}
@@ -11063,13 +11055,13 @@ export default function Home() {
           </div>
           <a href="#analisis">Ver análisis completo →</a>
         </aside>
-      </section>
-      <section id="analisis" className="analysis wrap">
+      </section>}
+      {eneCms.showDetail!==false&&<section id="analisis" className="analysis wrap">
         <div className="section-title">
           <span className="eyebrow">
             Resultados del período · {shortQuarter} {year}
           </span>
-          <h2>El mercado laboral, en detalle</h2>
+          <h2>{eneCms.detailTitle||"El mercado laboral, en detalle"}</h2>
           <p>Lectura sintética del trimestre móvil {periodText}.</p>
         </div>
         <div className="analysis-grid">
@@ -11153,8 +11145,8 @@ export default function Home() {
             </p>
           </article>
         </div>
-      </section>
-      <LaborPopulationDendrogram
+      </section>}
+      {eneCms.showLaborTree!==false&&<LaborPopulationDendrogram
         nationalSeriesBySex={data.series}
         regionalSeries={remoteEne?.regionalSeries}
         year={year}
@@ -11163,14 +11155,14 @@ export default function Home() {
           setYear(selected.year);
           setQuarter(selected.quarter);
         }}
-      />
-      <section className="topic-analysis">
+      />}
+      {eneCms.showUnemployment!==false&&<section className="topic-analysis">
         <div className="wrap">
           <div className="section-title">
             <span className="eyebrow">
               Análisis temático · {shortQuarter} {year}
             </span>
-            <h2>Desocupación</h2>
+            <h2>{eneCms.unemploymentTitle||"Desocupación"}</h2>
             <p>
               Composición, diferencias por sexo y evolución desestacionalizada.
             </p>
@@ -11268,14 +11260,14 @@ export default function Home() {
             </article>
           </div>
         </div>
-      </section>
-      <section className="occupation-analysis">
+      </section>}
+      {eneCms.showEmployment!==false&&<section className="occupation-analysis">
         <div className="wrap">
           <div className="section-title">
             <span className="eyebrow">
               Análisis temático · {shortQuarter} {year}
             </span>
-            <h2>Ocupación</h2>
+            <h2>{eneCms.employmentTitle||"Ocupación"}</h2>
             <p>
               Evolución anual y actividades que explican el cambio de la
               población ocupada.
@@ -11475,14 +11467,14 @@ export default function Home() {
             </article>
           </div>
         </div>
-      </section>
-      <section className="participation-analysis">
+      </section>}
+      {eneCms.showParticipation!==false&&<section className="participation-analysis">
         <div className="wrap">
           <div className="section-title">
             <span className="eyebrow">
               Análisis temático · {shortQuarter} {year}
             </span>
-            <h2>Participación laboral</h2>
+            <h2>{eneCms.participationTitle||"Participación laboral"}</h2>
             <p>
               Participación, ocupación y evolución de la población fuera de la
               fuerza de trabajo.
@@ -11585,8 +11577,8 @@ export default function Home() {
             </div>
           )}
         </div>
-      </section>
-      <section id="recursos" className="resources">
+      </section>}
+      {eneCms.showResources!==false&&<section id="recursos" className="resources">
         <div className="wrap">
           <div className="section-title">
             <span className="eyebrow">Centro de recursos</span>
@@ -11726,9 +11718,8 @@ export default function Home() {
               </div>
             </div>
           </section>}
-          <LaborSdmxBox context="ene" />
         </div>
-      </section>
+      </section>}
       <footer>
         <div className="wrap">
           <div className="brand inverse">

@@ -1,28 +1,20 @@
 # Contribución
 
-## Flujo de trabajo
+## Antes de modificar
 
-1. Crear una rama descriptiva desde `main`.
-2. Realizar cambios pequeños y trazables.
-3. Agregar o actualizar pruebas.
-4. Ejecutar `npm run lint` y `npm test`.
-5. Abrir un pull request con evidencia.
-6. Obtener revisión técnica y, cuando corresponda, metodológica.
-7. Fusionar sólo con controles aprobados.
+1. Leer `ARCHITECTURE.md`, `DATA_GOVERNANCE.md` y la documentación relevante de `docs/`.
+2. Identificar la operación estadística, capa y contrato afectados.
+3. Trabajar en una rama de propósito acotado.
 
-## Convenciones
+## Reglas de desarrollo
 
-- TypeScript para el código de aplicación.
-- Comentarios para explicar transformaciones o decisiones no evidentes.
-- Nombres de variables que reflejen concepto y unidad.
-- No duplicar fórmulas estadísticas entre componentes.
-- Mantener las URLs oficiales junto al transformador responsable.
+- Escribir TypeScript estricto y conservar los comentarios necesarios para explicar reglas no evidentes.
+- Mantener la autorización en rutas y servicios del servidor; nunca confiar en ocultar controles en la interfaz.
+- No cambiar contratos públicos, slugs ni rutas sin un plan de compatibilidad.
+- Agregar una migración para cada cambio persistente y una prueba cuando se alteren políticas, workflow o permisos.
+- Mantener contenidos institucionales, fuentes y fechas verificables.
 
-## Criterios de aceptación
+## Antes de proponer cambios
 
-- La página carga desde caché o fallback antes de verificar la fuente.
-- Las unidades, notas y períodos son correctos.
-- Los gráficos responden a teclado y dispositivos táctiles.
-- Las series y selectores mantienen transiciones coherentes.
-- No se incorporan secretos ni datos personales.
-- Las pruebas y la construcción finalizan correctamente.
+Ejecutar `npm run lint`, las pruebas aplicables y, cuando se altere la entrega, `npm run build`. Documentar cualquier limitación conocida y actualizar los documentos afectados.
+
