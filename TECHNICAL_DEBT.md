@@ -1,26 +1,10 @@
-# Deuda técnica registrada
+# Deuda técnica y límites conocidos
 
-## Análisis estático
+| Tema | Estado | Tratamiento previsto |
+| --- | --- | --- |
+| Transición de catálogo | Conviven lecturas heredada y editorial | Mantener conciliación y retirar la ruta heredada solo cuando todas las operaciones estén verificadas. |
+| Integraciones de correo | Dependen de secretos y configuración externa | Conservar outbox idempotente y registrar errores sin exponer credenciales. |
+| Datos de gran tamaño | Parte de los datos y documentos vive en el repositorio | Evaluar almacenamiento especializado y procesos de actualización reproducibles. |
+| Portabilidad institucional | La primera etapa usa D1 y Sites | Mantener adaptadores, contratos y exportación conforme a `docs/PORTABILITY.md`. |
+| Cobertura de pruebas visuales | Hay pruebas estructurales y de políticas, no una matriz visual completa | Añadir pruebas de recorridos críticos al estabilizar el CMS. |
 
-La versión respaldada compila y cuenta con pruebas funcionales, pero ESLint
-detecta observaciones heredadas en componentes de la aplicación:
-
-- actualizaciones sincrónicas de estado dentro de algunos efectos;
-- acceso a referencias React durante el renderizado;
-- tipos `any` en la ruta de supermercados;
-- dependencias faltantes y directivas no utilizadas.
-
-Por esta razón, el paso de lint en GitHub Actions es inicialmente informativo.
-Las pruebas y la construcción siguen siendo obligatorias.
-
-## Plan de regularización
-
-1. Corregir primero los tipos explícitos de las rutas API.
-2. Refactorizar los hooks de animación conservando el comportamiento visual.
-3. Sustituir estados derivados por cálculos durante el renderizado cuando
-   corresponda.
-4. Agregar pruebas de regresión para cada refactorización.
-5. Convertir lint nuevamente en control bloqueante.
-
-Estas correcciones deben realizarse en pull requests separados del respaldo
-inicial para mantener trazabilidad y facilitar la reversión.
