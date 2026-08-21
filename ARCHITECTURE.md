@@ -1,45 +1,42 @@
 # Arquitectura
 
-## Componentes
+## Límites del sistema
 
-1. **Interfaz:** componentes React y estilos globales en `app/`.
-2. **Rutas de datos:** endpoints bajo `app/api/`.
-3. **Transformadores:** módulos de dominio en `lib/`.
-4. **Persistencia:** D1, esquema Drizzle y migraciones en `db/` y `drizzle/`.
-5. **Arranque resiliente:** archivos JSON/XLSX versionados en `public/`.
-6. **Runtime:** adaptador Worker en `worker/`.
+El sitio público y el CMS comparten una sola aplicación. La interfaz no autoriza acciones por sí misma: las rutas del servidor validan identidad, rol y alcance por operación estadística antes de escribir en D1 o acceder a archivos privados.
 
-## Flujo de una consulta
+```mermaid
+flowchart TD
+  A[Visitante] --> B[Interfaz pública]
+  C[Editor o aprobador] --> D[Administrador]
+  B --> E[Rutas API de lectura]
+  D --> F[Rutas API administrativas]
+  E --> G[D1 y datos publicados]
+  F --> H[Reglas RBAC y workflow]
+  H --> G
+  H --> I[BUCKET privado]
+```
 
-1. La página solicita el producto estadístico.
-2. La API busca una revisión válida en D1.
-3. Si existe, responde inmediatamente.
-4. La interfaz presenta los datos y solicita una verificación en segundo plano.
-5. La API consulta ETag, `Last-Modified` y tamaño de la fuente.
-6. Si la firma cambió, descarga y transforma la planilla.
-7. Se calculan indicadores derivados y se valida la estructura.
-8. La nueva revisión se guarda en D1 y la interfaz se actualiza.
-9. Si la fuente falla, se conserva la última revisión válida.
+## Capas
 
-## Capas de continuidad
+| Capa | Ubicación | Responsabilidad |
+| --- | --- | --- |
+| Presentación pública | `app/page.tsx`, componentes de `app/` | Navegación, relatos, productos y recursos. |
+| Administrador | `app/admin/` | Gestión de páginas, contenidos, fuentes, archivos, variables y períodos. |
+| API | `app/api/` | Lectura de datos, publicaciones, SDMX y acciones administrativas. |
+| Dominio | `lib/` | Políticas, validación, consultas, caché y coordinación editorial. |
+| Persistencia | `db/`, `drizzle/` | Esquema D1 y cambios versionados. |
+| Archivos | `public/`, `BUCKET` | Datos y documentos públicos; archivos privados del CMS. |
 
-- **Archivos iniciales:** garantizan una vista recuperable desde el código.
-- **Memoria del cliente:** evita repetir solicitudes durante la navegación.
-- **D1 compartida:** reutiliza la misma revisión entre visitantes e instancias.
-- **Fuente oficial:** determina cuándo corresponde una actualización.
+## Modelo editorial
 
-## Criterios de diseño
+Una operación estadística contiene páginas. Cada página y fuente tiene versiones. Los componentes de una página declaran su tipo y configuración, y pueden vincular una o más fuentes. Las publicaciones y archivos mantienen su propio ciclo de vida y no se exponen al público hasta que una versión autorizada cumple su fecha de publicación.
 
-- Último período disponible por omisión.
-- Texto analítico vinculado a las cifras visibles.
-- Selectores territoriales, temáticos y temporales.
-- Leyendas que activan u ocultan series.
-- Transiciones suaves y descarga de gráficos.
-- Diseño adaptable y navegación consistente.
+El modelo heredado de publicaciones se conserva durante la transición. La lectura editorial se activa por operación y puede volver al modo heredado para recuperación controlada.
 
-## Límites actuales
+## Convenciones relevantes
 
-- Las fuentes son planillas y documentos cuya estructura puede cambiar.
-- Los transformadores son específicos por producto.
-- D1 actúa como caché operacional, no como fuente estadística maestra.
-- La incorporación de un producto requiere validación metodológica y editorial.
+- Fechas almacenadas en UTC y presentadas en `America/Santiago`.
+- Slugs y rutas públicas deben mantenerse estables.
+- Toda modificación persistente debe quedar en una migración nueva; no se reescriben migraciones aplicadas.
+- Componentes admitidos mediante registro y esquemas; no se acepta HTML, CSS o JavaScript arbitrario desde el CMS.
+
