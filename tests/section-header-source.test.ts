@@ -8,35 +8,40 @@ const pageSource = readFileSync("app/page.tsx", "utf8");
 const economicSource = readFileSync("app/EconomicPage.tsx", "utf8");
 const supermarketSource = readFileSync("app/SupermarketsPage.tsx", "utf8");
 const tourismSource = readFileSync("app/TourismPage.tsx", "utf8");
+const treeMenuSource = readFileSync("app/TopicTreeMenu.tsx", "utf8");
 
-test("la cabecera económica contiene los seis menús desplegables", () => {
-  const menuIds = [
-    "labor",
-    "prices",
-    "demography",
-    "living",
-    "industry",
-    "services",
+test("el explorador estadístico contiene los nueve temas vigentes", () => {
+  const themes = [
+    "Mercado laboral",
+    "Precios e inflación",
+    "Demografía y población",
+    "Sociedad y condiciones de vida",
+    "Industria, energía y construcción",
+    "Comercio y servicios",
+    "Agricultura y medio ambiente",
+    "Ciencia y tecnología",
+    "Macroeconomía y finanzas públicas",
   ];
 
-  for (const menuId of menuIds) {
-    assert.match(headerSource, new RegExp(`id: "${menuId}"`));
+  for (const theme of themes) {
+    assert.match(treeMenuSource, new RegExp(theme));
   }
 });
 
-test("la cabecera compartida usa el logo institucional y apertura por cursor", () => {
+test("la cabecera compartida usa el logo institucional y el explorador compacto", () => {
   assert.match(headerSource, /src="\/ine-logo\.jpg"/);
-  assert.match(headerSource, /onMouseEnter=\{\(\) => setOpenMenu\(menu\.id\)\}/);
-  assert.match(headerSource, /onMouseLeave=\{\(\) => setOpenMenu\(null\)\}/);
+  assert.match(headerSource, /<TopicTreeMenu onNavigate=\{onNavigate\} \/>/);
+  assert.match(treeMenuSource, /aria-expanded=\{o\}/);
+  assert.match(treeMenuSource, /Explorar estadísticas/);
 });
 
-test("el acceso al inicio antecede Mercado laboral en todas las cabeceras", () => {
+test("el acceso al inicio antecede el explorador en todas las cabeceras", () => {
   assert.match(headerSource, /export function HomeNavLink/);
   assert.match(headerSource, /href="\/"/);
   assert.match(headerSource, /aria-label="Ir al inicio"/);
   assert.ok(
     headerSource.indexOf("<HomeNavLink") <
-      headerSource.indexOf("{menus.map((menu)"),
+      headerSource.indexOf("<TopicTreeMenu"),
   );
   assert.equal(
     (pageSource.match(/<HomeNavLink \/>/g) || []).length,

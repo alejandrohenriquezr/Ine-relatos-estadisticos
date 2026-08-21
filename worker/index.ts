@@ -5,6 +5,7 @@ import handler from "vinext/server/app-router-entry";
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  BUCKET: R2Bucket;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -12,6 +13,11 @@ interface Env {
       };
     };
   };
+  GMAIL_CLIENT_ID?: string;
+  GMAIL_CLIENT_SECRET?: string;
+  GMAIL_REFRESH_TOKEN?: string;
+  GMAIL_SENDER_EMAIL?: string;
+  SITE_PUBLIC_URL?: string;
 }
 
 interface ExecutionContext {
@@ -19,13 +25,21 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
-function withNoIndexHeaders(response: Response): Response {
-  // El encabezado protege también recursos no HTML y rutas que no procesan metadatos.
+function withSecurityHeaders(response: Response, request: Request): Response {
+  // Estos encabezados se aplican a HTML y API sin interferir con los recursos de Vinext.
   const protectedResponse = new Response(response.body, response);
   protectedResponse.headers.set(
     "X-Robots-Tag",
     "noindex, nofollow, noarchive, nosnippet, noimageindex",
   );
+  protectedResponse.headers.set("X-Content-Type-Options", "nosniff");
+  protectedResponse.headers.set("X-Frame-Options", "DENY");
+  protectedResponse.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  protectedResponse.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  protectedResponse.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  if (new URL(request.url).protocol === "https:") {
+    protectedResponse.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
   return protectedResponse;
 }
 
@@ -40,6 +54,15 @@ const worker = {
     // La vinculación es estable durante la vida del isolate y queda accesible
     // para las rutas sin importar módulos exclusivos de Workers en el build.
     (globalThis as typeof globalThis & { __SITES_DB?: D1Database }).__SITES_DB = env.DB;
+    (globalThis as typeof globalThis & { __SITES_BUCKET?: R2Bucket }).__SITES_BUCKET = env.BUCKET;
+    (globalThis as typeof globalThis & { __SITES_ASSETS?: Fetcher }).__SITES_ASSETS = env.ASSETS;
+    (globalThis as typeof globalThis & { __SITES_EMAIL_ENV?: Record<string, string | undefined> }).__SITES_EMAIL_ENV = {
+      GMAIL_CLIENT_ID: env.GMAIL_CLIENT_ID,
+      GMAIL_CLIENT_SECRET: env.GMAIL_CLIENT_SECRET,
+      GMAIL_REFRESH_TOKEN: env.GMAIL_REFRESH_TOKEN,
+      GMAIL_SENDER_EMAIL: env.GMAIL_SENDER_EMAIL,
+      SITE_PUBLIC_URL: env.SITE_PUBLIC_URL,
+    };
     const url = new URL(request.url);
 
     // Normaliza barras duplicadas para que enlaces copiados como "//api/..."
@@ -59,11 +82,11 @@ const worker = {
           return result.response();
         },
       }, allowedWidths);
-      return withNoIndexHeaders(response);
+      return withSecurityHeaders(response, request);
     }
 
     const response = await handler.fetch(request, env, ctx);
-    return withNoIndexHeaders(response);
+    return withSecurityHeaders(response, request);
   },
 };
 

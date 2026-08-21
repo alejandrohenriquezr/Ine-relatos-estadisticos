@@ -1,49 +1,18 @@
 # Despliegue y recuperación
 
-## Sitio productivo
+## Entorno
 
-- Proyecto Sites: identificado por `.openai/hosting.json`.
-- Base lógica D1: `DB`.
-- La publicación debe realizarse únicamente desde una versión guardada y
-  validada del proyecto.
+La aplicación se ejecuta en ChatGPT Sites. El manifiesto `.openai/hosting.json` declara la identidad del proyecto y los bindings lógicos. El proyecto usa Vinext/Vite y puede disponer de D1 y `BUCKET` según su configuración de entorno.
 
-## Validaciones previas
+## Secuencia de entrega
 
-```bash
-npm ci
-npm run lint
-npm test
-```
+1. Revisar los cambios y ejecutar las pruebas pertinentes.
+2. Confirmar que toda modificación del esquema tenga una migración Drizzle nueva.
+3. Verificar que no se agregaron secretos ni datos privados.
+4. Construir con `npm run build` y resolver los errores antes de crear una versión.
+5. Crear la versión del sitio desde el commit validado y publicar solo con la autorización aplicable.
 
-El proceso de construcción debe producir:
+## Recuperación
 
-- `dist/server/index.js`;
-- `dist/.openai/hosting.json`;
-- migraciones en `dist/.openai/drizzle/`, cuando correspondan.
+Ante diferencias en el catálogo editorial, cambiar la operación afectada al modo de lectura heredado, revisar auditoría y conciliación, y restaurar el modo CMS solo después de verificar resultados. El retiro de un archivo o publicación debe hacerse mediante el workflow; no se elimina directamente una versión publicada.
 
-## Recuperación desde GitHub
-
-1. Clonar el repositorio privado.
-2. Instalar Node.js compatible.
-3. Ejecutar `npm ci`.
-4. Verificar `.openai/hosting.json`.
-5. Configurar el enlace D1 en el ambiente de Sites.
-6. Ejecutar las pruebas.
-7. Publicar mediante el flujo de Sites.
-8. Confirmar las páginas principales y las rutas API.
-
-## Datos y caché
-
-El repositorio respalda el esquema, las migraciones y los archivos iniciales.
-No contiene una exportación de la base D1 productiva. La caché puede
-reconstruirse desde las fuentes oficiales.
-
-## Reversión
-
-Ante una falla:
-
-1. identificar el último release válido;
-2. restaurar su commit;
-3. ejecutar pruebas;
-4. publicar una nueva versión;
-5. documentar causa, impacto y corrección.

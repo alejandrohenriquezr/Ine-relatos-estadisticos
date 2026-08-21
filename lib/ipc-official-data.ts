@@ -19,7 +19,7 @@ const nullableNumber = (value: unknown) =>
 
 export function parseIpcOfficialFiles(files: {
   ipc: ArrayBuffer;
-  analytics: ArrayBuffer;
+  analytics?: ArrayBuffer;
 }) {
   const series = rows(files.ipc)
     .slice(4)
@@ -45,7 +45,7 @@ export function parseIpcOfficialFiles(files: {
       monthlyIncidence: nullableNumber(row[13]),
     }));
 
-  const analytics = rows(files.analytics)
+  const analytics = files.analytics ? rows(files.analytics)
     .slice(4)
     .filter((row) => Number.isInteger(row[0]) && Number.isInteger(row[1]))
     .map((row) => ({
@@ -55,7 +55,7 @@ export function parseIpcOfficialFiles(files: {
       index: number(row[3]),
       monthly: number(row[4]),
       accumulated: number(row[5]),
-    }));
+    })) : [];
 
   return {
     data: { base: "2023=100", updated: "", series },

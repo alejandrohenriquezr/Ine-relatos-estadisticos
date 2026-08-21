@@ -338,13 +338,15 @@ export default function SupermarketsPage({
   onNavigate: (value: string) => void;
 }) {
   const [data, setData] = useState<any>(() => peekDataset("supermarkets")),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [sharedDataReady, setSharedDataReady] = useState(() => Boolean(peekDataset("supermarkets")));
   useEffect(() => {
     let active = true;
     primeDataset<any>("supermarkets")
       .then(async (initial) => {
         if (!active) return;
         setData(initial);
+        setSharedDataReady(true);
         setError("");
         const refreshed = await refreshDataset<any>("supermarkets");
         if (active && refreshed) setData(refreshed);
@@ -366,6 +368,7 @@ export default function SupermarketsPage({
     () => data?.indexByTerritory?.Nacional?.at(-1),
     [data],
   );
+  if (!sharedDataReady) return <main className="analysis-loading"><span className="analysis-spinner" /><p>Cargando la publicación vigente…</p></main>;
   return (
     <main className="economic-page supermarket-page">
       <SectionHeader
